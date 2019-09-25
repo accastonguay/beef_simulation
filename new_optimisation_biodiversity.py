@@ -145,7 +145,8 @@ def zstats_partial(feats):
     feats["opp_cost"] = (feats['suitable_area'] * feats["agri_opp_cost"])
     # Calculate transport emissions based on distance to market, fuel efficiency and road emission factor
     feats["transport_emissions"] = feats["accessibility"].values * fuel_efficiency * truck_emission_factor
-
+    # try adding stuff here
+    # feats["msa_suitable_area"] = (feats["msalu"] * feats["suitable_area"]
     return feats
 
 #@profile
@@ -433,8 +434,14 @@ def scoring(feats, scenario, carbon_price):
             feats[l + '_rel_cost'] = np.where(feats[l + '_meat'] > 0, feats[l + '_meth'] / feats[l + '_meat'], np.nan)
             feats[l + '_exp_emiss'] = 0
             feats[l + '_exp_costs'] = 0
+
+    elif scenario == 'biodiversity':
+
+        for l in landuses:
+            feats[l + '_biodiversity'] = feats['msalu']
+
     # Get meat production and GHG emissions of best land use per cell
-    if scenario in ['cscc', 'costs', 'ghg']:
+    if scenario in ['cscc', 'costs', 'ghg', 'biodiversity']:
         columns = [l + '_rel_cost' for l in landuses]
 
         feats['best_score'] = np.nanmin(feats[columns].values, axis=1)
