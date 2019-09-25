@@ -1,0 +1,263 @@
+"region","group","ADM0_A3","ave_distance"
+"EUR","Baltic","EST",3374.68421052632
+"EUR","Baltic","LVA",2873.82352941176
+"EUR","Baltic","LTU",5121.5
+"EUR","East Europe","BGR",4091.73913043478
+"EUR","East Europe","CZE",3328.04545454545
+"EUR","East Europe","HUN",4100.08333333333
+"EUR","East Europe","POL",8477.2375
+"EUR","East Europe","ROU",4799.23529411765
+"EUR","East Europe","SVK",3779.3
+"EUR","East Europe","SVN",3197.8
+"EUR","West Europe","LIE",5669.76965512781
+"EUR","West Europe","AUT",4974.10256410256
+"EUR","West Europe","BEL",7167.93055555556
+"EUR","West Europe","DEU",8037.41836734694
+"EUR","West Europe","MCO",5669.76965512781
+"EUR","West Europe","FRA",5751.11627906977
+"EUR","West Europe","MAF",5669.76965512781
+"EUR","West Europe","NCL",5669.76965512781
+"EUR","West Europe","SPM",3568
+"EUR","West Europe","PYF",5669.76965512781
+"EUR","West Europe","ATF",5669.76965512781
+"EUR","West Europe","BLM",5669.76965512781
+"EUR","West Europe","WLF",5669.76965512781
+"EUR","West Europe","CLP",5669.76965512781
+"EUR","West Europe","LUX",2390.66666666667
+"EUR","West Europe","SXM",5669.76965512781
+"EUR","West Europe","NLD",7799.15315315315
+"EUR","West Europe","CUW",5669.76965512781
+"EUR","West Europe","ABW",5669.76965512781
+"EUR","North Europe","DNK",5954.27777777778
+"EUR","North Europe","GRL",7590.56722536723
+"EUR","North Europe","FRO",7590.56722536723
+"EUR","North Europe","FIN",5732.5
+"EUR","North Europe","ALD",7590.56722536723
+"EUR","North Europe","IRL",7103.27142857143
+"EUR","North Europe","SWE",5234.73076923077
+"EUR","North Europe","ESB",7590.56722536723
+"EUR","North Europe","GBR",7763.62337662338
+"EUR","North Europe","GIB",7590.56722536723
+"EUR","North Europe","WSB",7590.56722536723
+"EUR","North Europe","TCA",7590.56722536723
+"EUR","North Europe","PCN",7590.56722536723
+"EUR","North Europe","MSR",7590.56722536723
+"EUR","North Europe","AIA",7590.56722536723
+"EUR","North Europe","VGB",7590.56722536723
+"EUR","North Europe","CYM",7590.56722536723
+"EUR","North Europe","BMU",7590.56722536723
+"EUR","North Europe","SHN",7590.56722536723
+"EUR","North Europe","JEY",7590.56722536723
+"EUR","North Europe","GGY",7590.56722536723
+"EUR","North Europe","IMN",7590.56722536723
+"EUR","North Europe","IOT",7590.56722536723
+"EUR","North Europe","SGS",7590.56722536723
+"EUR","North Europe","FLK",13755
+"EUR","South Europe","CNM",4873.64488649211
+"EUR","South Europe","CYN",4873.64488649211
+"EUR","South Europe","CYP",4556.84615384615
+"EUR","South Europe","GRC",5017.77777777778
+"EUR","South Europe","SMR",4873.64488649211
+"EUR","South Europe","VAT",4873.64488649211
+"EUR","South Europe","ITA",5232.35802469136
+"EUR","South Europe","MLT",2924
+"EUR","South Europe","PRT",5408.42307692308
+"EUR","South Europe","AND",4873.64488649211
+"EUR","South Europe","ESP",6102.46428571429
+"EUR","Former USSR","ARM",6949.56346153846
+"EUR","Former USSR","AZE",6949.56346153846
+"EUR","Former USSR","BLR",11441.1666666667
+"EUR","Former USSR","GEO",6825.4
+"EUR","Former USSR","KAZ",5793.8
+"EUR","Former USSR","KAB",6949.56346153846
+"EUR","Former USSR","KGZ",7176.5
+"EUR","Former USSR","MDA",3268.66666666667
+"EUR","Former USSR","RUS",5376.16666666667
+"EUR","Former USSR","TJK",6949.56346153846
+"EUR","Former USSR","TKM",6949.56346153846
+"EUR","Former USSR","UKR",7409.80769230769
+"EUR","Former USSR",NA,6949.56346153846
+"EUR","Former USSR","UZB",8305
+"EUR","Balkans","ALB",1397
+"EUR","Balkans","BIH",7560.5
+"EUR","Balkans","HRV",2986.58333333333
+"EUR","Balkans","MKD",977.5
+"EUR","Balkans","MNE",6835
+"EUR","Balkans","KOS",4166.91094771242
+"EUR","Balkans","SRB",5244.88235294118
+"EUR","Rest of Europe",NA,3851.00673400673
+"EUR","Rest of Europe","ISL",1568.33333333333
+"EUR","Rest of Europe","NOR",6720.90909090909
+"EUR","Rest of Europe","CHE",3263.77777777778
+"OCE","Pacific islands",NA,2367.33333333333
+"OCE","ANZ","AUS",12513.2903225806
+"OCE","ANZ","HMD",12665.6614656381
+"OCE","ANZ","IOA",12665.6614656381
+"OCE","ANZ","NFK",12665.6614656381
+"OCE","ANZ","CSI",12665.6614656381
+"OCE","ANZ","ATC",12665.6614656381
+"OCE","ANZ","NZL",12818.0326086957
+"OCE","ANZ","COK",12665.6614656381
+"OCE","ANZ","NIU",12665.6614656381
+"OCE","Pacific islands","FJI",1961.5
+"OCE","Pacific islands","KIR",2367.33333333333
+"OCE","Pacific islands","PNG",2367.33333333333
+"OCE","Pacific islands","WSM",574
+"OCE","Pacific islands","SLB",2367.33333333333
+"OCE","Pacific islands","MHL",2367.33333333333
+"OCE","Pacific islands","NRU",2367.33333333333
+"OCE","Pacific islands","TUV",2367.33333333333
+"OCE","Pacific islands","TON",2367.33333333333
+"OCE","Pacific islands","FSM",2367.33333333333
+"OCE","Pacific islands","PLW",2367.33333333333
+"OCE","Pacific islands","VUT",4566.5
+"NAM","Canada","CAN",8233.54
+"NAM","Canada",NA,8233.54
+"NAM","United States","USA",9217.34146341463
+"NAM","United States","UMI",9217.34146341463
+"NAM","United States","VIR",9217.34146341463
+"NAM","United States","PRI",9217.34146341463
+"NAM","United States","ASM",9217.34146341463
+"NAM","United States","GUM",9217.34146341463
+"NAM","United States","MNP",9217.34146341463
+"LAM","Rest of Centr. America","PAN",7379.08333333333
+"LAM","Rest of Centr. America","TTO",6948.2503968254
+"LAM","Rest of Centr. America",NA,6948.2503968254
+"LAM","Rest of Centr. America","VCT",6948.2503968254
+"LAM","Rest of Centr. America","LCA",6948.2503968254
+"LAM","Rest of Centr. America","KNA",6948.2503968254
+"LAM","Rest of Centr. America",NA,6948.2503968254
+"LAM","Rest of Centr. America",NA,6948.2503968254
+"LAM","Rest of Centr. America","ATG",4384
+"LAM","Rest of Centr. America",NA,6948.2503968254
+"LAM","Brazil","BRA",11266.3300970874
+"LAM","Mexico","MEX",10309.75
+"LAM","Rest of Centr. America","BHS",6828
+"LAM","Rest of Centr. America","BRB",6948.2503968254
+"LAM","Rest of Centr. America","BLZ",19619
+"LAM","Rest of Centr. America",NA,6948.2503968254
+"LAM","Rest of Centr. America","CRI",4455.33333333333
+"LAM","Rest of Centr. America","USG",6948.2503968254
+"LAM","Rest of Centr. America","CUB",6948.2503968254
+"LAM","Rest of Centr. America","DMA",6948.2503968254
+"LAM","Rest of Centr. America","DOM",4113.44444444444
+"LAM","Rest of Centr. America","SLV",2907
+"LAM","Rest of Centr. America","GRD",6948.2503968254
+"LAM","Rest of Centr. America","GTM",1353
+"LAM","Rest of Centr. America","HTI",6948.2503968254
+"LAM","Rest of Centr. America","HND",10437.5
+"LAM","Rest of Centr. America","JAM",6948.2503968254
+"LAM","Rest of Centr. America","NIC",8006.14285714286
+"LAM","Rest of Centr. America",NA,6948.2503968254
+"LAM","Rest of South America","ARG",12907.609375
+"LAM","Rest of South America","BOL",12260.6666666667
+"LAM","Rest of South America","CHL",11646.6956521739
+"LAM","Rest of South America","COL",12631.5384615385
+"LAM","Rest of South America","ECU",17198
+"LAM","Rest of South America","GUY",11375.9008229938
+"LAM","Rest of South America","PRY",12068
+"LAM","Rest of South America","PER",11375.9008229938
+"LAM","Rest of South America","SUR",403
+"LAM","Rest of South America","URY",11891.6964285714
+"LAM","Rest of South America","VEN",11375.9008229938
+"EAS","China","CHN",12539.4117647059
+"EAS","China","HKG",7001.75
+"EAS","China","MAC",46
+"EAS","Japan","JPN",10776.8965517241
+"EAS","China","TWN",6529.05392156863
+"EAS","South Korea","KOR",9487.66666666667
+"SEA","Insular SEA","BRN",5571.04166666667
+"SEA","Insular SEA","IDN",9594.33333333333
+"SEA","Insular SEA","SGP",4457.375
+"SEA","Insular SEA","MYS",3948.5
+"SEA","Insular SEA","MMR",5520
+"SEA","Insular SEA","PHL",5571.04166666667
+"SEA","Insular SEA","THA",4335
+"SEA","Continental SEA","KHM",5440.16666666667
+"SEA","Continental SEA","PRK",5440.16666666667
+"SEA","Continental SEA","LAO",5440.16666666667
+"SEA","Continental SEA","MNG",3961
+"SEA","Continental SEA","TLS",5440.16666666667
+"SEA","Continental SEA","VNM",6919.33333333333
+"SAS","India","KAS",7339.08064516129
+"SAS","India",NA,7339.08064516129
+"SAS","India","IND",7339.08064516129
+"SAS","Rest of South Asia","AFG",3565.81313131313
+"SAS","Rest of South Asia","BGD",3565.81313131313
+"SAS","Rest of South Asia","BTN",3565.81313131313
+"SAS","Rest of South Asia","MDV",3565.81313131313
+"SAS","Rest of South Asia","NPL",5161.66666666667
+"SAS","Rest of South Asia","PAK",3688.27272727273
+"SAS","Rest of South Asia","LKA",1847.5
+"MNA","Mid. east, North Africa","DZA",1024
+"MNA","Mid. east, North Africa","BHR",5079.43055555556
+"MNA","Mid. east, North Africa","EGY",5400.25
+"MNA","Mid. east, North Africa","IRN",8718.875
+"MNA","Mid. east, North Africa","IRQ",5079.43055555556
+"MNA","Mid. east, North Africa","ISR",11264
+"MNA","Mid. east, North Africa","PSX",5079.43055555556
+"MNA","Mid. east, North Africa","JOR",4270.55555555556
+"MNA","Mid. east, North Africa","KWT",3888.55555555556
+"MNA","Mid. east, North Africa","LBN",7323.5
+"MNA","Mid. east, North Africa","LBY",5079.43055555556
+"MNA","Mid. east, North Africa","MAR",5079.43055555556
+"MNA","Mid. east, North Africa","SAH",5079.43055555556
+"MNA","Mid. east, North Africa","OMN",2923.5
+"MNA","Mid. east, North Africa","QAT",5079.43055555556
+"MNA","Mid. east, North Africa",NA,5079.43055555556
+"MNA","Mid. east, North Africa","SAU",4411.2
+"MNA","Mid. east, North Africa","SYR",5079.43055555556
+"MNA","Mid. east, North Africa","TUN",557
+"MNA","Mid. east, North Africa","ARE",6092.3
+"MNA","Mid. east, North Africa","YEM",5079.43055555556
+"MNA","Turkey","TUR",8815.2
+"SSA","Congo basin","CMR",1281
+"SSA","Congo basin","CAF",1281
+"SSA","Congo basin","COG",1281
+"SSA","Congo basin","GAB",1281
+"SSA","Congo basin","GNQ",1281
+"SSA","Congo basin","COD",1281
+"SSA","East Africa","BDI",5930.87023809524
+"SSA","East Africa","ETH",2580
+"SSA","East Africa","KEN",5084.16666666667
+"SSA","East Africa","RWA",5930.87023809524
+"SSA","East Africa","TZA",6727.71428571429
+"SSA","East Africa","UGA",9331.6
+"SSA","South Africa","ZAF",7221.56862745098
+"SSA","Rest of South Africa","AGO",6949
+"SSA","Rest of South Africa","BWA",9232.40909090909
+"SSA","Rest of South Africa","COM",8043.39672459893
+"SSA","Rest of South Africa","LSO",8043.39672459893
+"SSA","Rest of South Africa","SYC",8043.39672459893
+"SSA","Rest of South Africa","MDG",7976
+"SSA","Rest of South Africa","MWI",8043.39672459893
+"SSA","Rest of South Africa","MUS",6907
+"SSA","Rest of South Africa","MOZ",8043.39672459893
+"SSA","Rest of South Africa","NAM",8681.76470588235
+"SSA","Rest of South Africa","SWZ",8426
+"SSA","Rest of South Africa","ZMB",5617
+"SSA","Rest of South Africa","ZWE",10558
+"SSA","West Africa","BEN",5312.10166666667
+"SSA","West Africa","BFA",5312.10166666667
+"SSA","West Africa","CPV",5312.10166666667
+"SSA","West Africa","TCD",5312.10166666667
+"SSA","West Africa","CIV",2094
+"SSA","West Africa","DJI",10537
+"SSA","West Africa","ERI",5312.10166666667
+"SSA","West Africa","GMB",5312.10166666667
+"SSA","West Africa","GHA",139
+"SSA","West Africa","GIN",5312.10166666667
+"SSA","West Africa","GNB",5312.10166666667
+"SSA","West Africa","LBR",5312.10166666667
+"SSA","West Africa","MLI",1321
+"SSA","West Africa","MRT",5312.10166666667
+"SSA","West Africa","NER",8220.5
+"SSA","West Africa","NGA",18066
+"SSA","West Africa","SEN",5261.6
+"SSA","West Africa","SLE",5312.10166666667
+"SSA","West Africa","SOM",1563
+"SSA","West Africa","SDN",5779.91666666667
+"SSA","West Africa","TGO",139
+"SSA","West Africa","SOL",5312.10166666667
+"SSA","West Africa","STP",5312.10166666667
+"SSA","West Africa","SDS",5312.10166666667
