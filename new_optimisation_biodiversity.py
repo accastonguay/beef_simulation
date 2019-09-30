@@ -392,6 +392,86 @@ def scoring(feats, scenario, carbon_price):
         feats['bestlu'] = feats['bestlu'].astype(str).astype(int)
         return feats
 
+    elif scenario == 'msa_test_sa':
+        for index, cell in feats.iterrows():
+            cell_scores = {}
+            landuse_score = {}
+            rel_MSA = feats.at[index, 'msa_sa']
+            best_z_landuse = rel_MSA
+            # Record the lowest score for each landuse, if any
+            if not isnan(best_z_landuse):
+                    cell_scores[best_z_landuse] = l
+            if len(cell_scores) > 0:
+                # If there is a score for the cell, select the lowest score and associated land use and write its meat prod.
+                best_z_cell = min(cell_scores)
+                bestlu = cell_scores[best_z_cell]
+                feats.at[index, 'bestlu'] = bestlu
+                feats.at[index, 'best_score'] = best_z_cell
+                feats.at[index, 'production'] = feats.at[index, bestlu + '_meat']
+            else:
+                # If there were no score for the cell, write no best land use
+                feats.at[index, 'bestlu'] = 'None'
+                feats.at[index, 'best_score'] = 99999
+                feats.at[index, 'production'] = 0
+
+        feats['bestlu'] = feats['bestlu'].replace({'None': 0,
+                                               'grass_low': 1,
+                                               'grass_high': 2,
+                                               'alfalfa_high': 3,
+                                               'maize': 4,
+                                               'soybean': 5,
+                                               'wheat': 6})
+        feats['bestlu'] = feats['bestlu'].astype(str).astype(int)
+        return feats
+
+    elif scenario == 'msa_landuse_test':
+        for l in landuses:
+            # For all landuse, calculate total costs over 20 years
+            feats[l + '_tot_cost'] = feats['grass_transition'] + \
+                                 (feats[l + '_cost'] + feats[l + '_trans_cost'] + feats['opp_cost']) * 20
+
+            # Calculate relative GHG and costs
+            if l + '_meat' in feats:
+                feats[l+'_rel_cost'] = np.where(feats[l+'_meat'] == 0, np.NaN, feats[l+'_tot_cost']/(feats[l+'_meat']*20))
+
+        # Do the weighted sum
+        for index, cell in feats.iterrows():
+            cell_scores = {}
+            for l in landuses:
+                landuse_score = {}
+                rel_MSA = feats.at[index, 'msa_sa']
+                rel_cost = cell[l + '_rel_cost']
+                # for each landuse and each lambda value, calculate the best score
+                z = rel_cost
+                landuse_score[z] = 1.
+                best_z_landuse = min(landuse_score)
+                # Record the lowest score for each landuse, if any
+                if not isnan(best_z_landuse):
+                    cell_scores[best_z_landuse] = l
+            if len(cell_scores) > 0:
+                # If there is a score for the cell, select the lowest score and associated land use and write its meat prod.
+                best_z_cell = min(cell_scores)
+                bestlu = cell_scores[best_z_cell]
+                feats.at[index, 'bestlu'] = bestlu
+                feats.at[index, 'best_score'] = rel_MSA
+                feats.at[index, 'production'] = feats.at[index, bestlu + '_meat']
+            else:
+                # If there were no score for the cell, write no best land use
+                feats.at[index, 'bestlu'] = 'None'
+                feats.at[index, 'best_score'] = 99999
+                feats.at[index, 'production'] = 0
+
+        feats['bestlu'] = feats['bestlu'].replace({'None': 0,
+                                               'grass_low': 1,
+                                               'grass_high': 2,
+                                               'alfalfa_high': 3,
+                                               'maize': 4,
+                                               'soybean': 5,
+                                               'wheat': 6})
+        feats['bestlu'] = feats['bestlu'].astype(str).astype(int)
+        return feats
+
+
     elif scenario == 'cost_test':
 
         for l in landuses:
@@ -887,7 +967,7 @@ def export_grid(resolution):
     grid = create_grid(resolution)
     grid.to_file("init_grid"+str(float(resolution)*100)+"km.gpkg", driver = 'GPKG')
 
-def main(location = 'AUS', export_folder ='.', scenario = 'msa_test', trade_scenario = 'notrade', cprice = 10, resolution = 0.1 , constraint = 'global',
+def main(location = 'AUS', export_folder ='.', scenario = 'msa_landuse_test', trade_scenario = 'notrade', cprice = 10, resolution = 0.1 , constraint = 'global',
          exp_global_cols = ['best_score', 'bestlu'], exp_changed_cols = ['best_score', 'bestlu', 'production'],
         grid = grid):
     """
