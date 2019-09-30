@@ -140,15 +140,12 @@ def zstats_partial(feats):
             # feats[colname] = pd.Series([0 if d['mean'] is None | d['mean'] < 0 else d['mean'] for d in stats], index=feats.index)
             feats[colname] = pd.Series([d['mean'] for d in stats], index=feats.index)
 
-
-
-        # else:
-        #     # For all other rasters do a point query instead of zonal statistics and replace negative values by NaN
-        #     stats = point_query(feats.set_geometry('centroid_column'), i, interpolate = 'nearest')
-        #     feats[colname] = pd.Series([0 if d is None else 0 if d < 0 else d for d in stats], index=feats.index)
+        else:
+            # For all other rasters do a point query instead of zonal statistics and replace negative values by NaN
+            stats = point_query(feats.set_geometry('centroid_column'), i, interpolate = 'nearest')
+            feats[colname] = pd.Series([0 if d is None else 0 if d < 0 else d for d in stats], index=feats.index)
         print('      Done with {} in {} seconds.'.format(colname, time.time()-start))
         logger.info("   Done with "+colname)
-        return feats
 
     # feats["opp_cost"] = feats["opp_cost"] * feats['suitable_area']
     feats["agri_opp_cost"] = feats["opp_cost"]
@@ -297,7 +294,7 @@ def create_grid(location, resolution):
 
     return grid
 
-def main(location = 'TLS', resolution = 0.1, ncores =1, export_folder ='.'):
+def main(location = 'AUS', resolution = 0.1, ncores =1, export_folder ='.'):
     """
     Main function that optimises beef production for a given location and resolution, using a given number of cores.
 
@@ -326,8 +323,8 @@ def main(location = 'TLS', resolution = 0.1, ncores =1, export_folder ='.'):
     # Parallelise the input data collection
     start = time.time()
 
-    #grid = parallelize(grid, zstats_partial, ncores)
-    grid = zstats_partial(grid)
+    grid = parallelize(grid, zstats_partial, ncores)
+    #grid = zstats_partial(grid)
     print('### Done Collecting inputs in {} seconds'.format(time.time() - start))
     logger.info("Done Collecting inputs")
 
