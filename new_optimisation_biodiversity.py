@@ -145,8 +145,7 @@ def zstats_partial(feats):
     feats["opp_cost"] = (feats['suitable_area'] * feats["agri_opp_cost"])
     # Calculate transport emissions based on distance to market, fuel efficiency and road emission factor
     feats["transport_emissions"] = feats["accessibility"].values * fuel_efficiency * truck_emission_factor
-    # try adding stuff here
-    # feats["msa_suitable_area"] = (feats["msalu"] * feats["suitable_area"]
+
     return feats
 
 #@profile
@@ -302,12 +301,15 @@ def scoring(feats, scenario, carbon_price):
         n_applied = grain_fertiliser['intercept'][l] + grain_fertiliser['coefficent'][l]*biomass
         # Estimate n2o from fertiliser application, crop-specific emission factors and convert to tons of CO2 eq:
         feats[l+'_n2o'] = n_applied * emission_factors[l] * 298
+    print(list(feats.columns))
     feats['opp_cost'] = feats['opp_cost'].astype(float)
+    # try adding stuff here
+    feats["msa_sa"] = (feats['suitable_area'] * feats["msalu"])
+    feats['msa_sa'] = feats['msa_sa'].astype(float)
     feats = feats.fillna(0)
 
     # Only keep cells where at least 1 feed option produces meat
     feats = feats.loc[feats[[l + '_meat' for l in landuses]].sum(axis=1) > 0]
-
     ### SCENARIOS
     if scenario == 'weighted_sum':
 
@@ -356,6 +358,85 @@ def scoring(feats, scenario, carbon_price):
                                                  feats['bestlu'].values[:, None], axis=1)
 
         del allArrays
+        return feats
+
+    elif scenario == 'msa_test':
+        for index, cell in feats.iterrows():
+            cell_scores = {}
+            landuse_score = {}
+            rel_MSA = feats.at[index, 'msalu']
+            best_z_landuse = rel_MSA
+            # Record the lowest score for each landuse, if any
+            if not isnan(best_z_landuse):
+                    cell_scores[best_z_landuse] = l
+            if len(cell_scores) > 0:
+                # If there is a score for the cell, select the lowest score and associated land use and write its meat prod.
+                best_z_cell = min(cell_scores)
+                bestlu = cell_scores[best_z_cell]
+                feats.at[index, 'bestlu'] = bestlu
+                feats.at[index, 'best_score'] = best_z_cell
+                feats.at[index, 'production'] = feats.at[index, bestlu + '_meat']
+            else:
+                # If there were no score for the cell, write no best land use
+                feats.at[index, 'bestlu'] = 'None'
+                feats.at[index, 'best_score'] = 99999
+                feats.at[index, 'production'] = 0
+
+        feats['bestlu'] = feats['bestlu'].replace({'None': 0,
+                                               'grass_low': 1,
+                                               'grass_high': 2,
+                                               'alfalfa_high': 3,
+                                               'maize': 4,
+                                               'soybean': 5,
+                                               'wheat': 6})
+        feats['bestlu'] = feats['bestlu'].astype(str).astype(int)
+        return feats
+
+    elif scenario == 'cost_test':
+
+        for l in landuses:
+            # For all landuse, calculate total costs over 20 years
+            feats[l + '_tot_cost'] = feats['grass_transition'] + \
+                                 (feats[l + '_cost'] + feats[l + '_trans_cost'] + feats['opp_cost']) * 20
+
+            # Calculate relative GHG and costs
+            if l + '_meat' in feats:
+                feats[l+'_rel_cost'] = np.where(feats[l+'_meat'] == 0, np.NaN, feats[l+'_tot_cost']/(feats[l+'_meat']*20))
+
+        # Do the weighted sum
+        for index, cell in feats.iterrows():
+            cell_scores = {}
+            for l in landuses:
+                landuse_score = {}
+                rel_cost = cell[l + '_rel_cost']
+                # for each landuse and each lambda value, calculate the best score
+                z = rel_cost
+                landuse_score[z] = 1.
+                best_z_landuse = min(landuse_score)
+                # Record the lowest score for each landuse, if any
+                if not isnan(best_z_landuse):
+                    cell_scores[best_z_landuse] = l
+            if len(cell_scores) > 0:
+                # If there is a score for the cell, select the lowest score and associated land use and write its meat prod.
+                best_z_cell = min(cell_scores)
+                bestlu = cell_scores[best_z_cell]
+                feats.at[index, 'bestlu'] = bestlu
+                feats.at[index, 'best_score'] = best_z_cell
+                feats.at[index, 'production'] = feats.at[index, bestlu + '_meat']
+            else:
+                # If there were no score for the cell, write no best land use
+                feats.at[index, 'bestlu'] = 'None'
+                feats.at[index, 'best_score'] = 99999
+                feats.at[index, 'production'] = 0
+
+        feats['bestlu'] = feats['bestlu'].replace({'None': 0,
+                                               'grass_low': 1,
+                                               'grass_high': 2,
+                                               'alfalfa_high': 3,
+                                               'maize': 4,
+                                               'soybean': 5,
+                                               'wheat': 6})
+        feats['bestlu'] = feats['bestlu'].astype(str).astype(int)
         return feats
 
     # Minimise total costs given country-level social cost of carbon
@@ -423,6 +504,7 @@ def scoring(feats, scenario, carbon_price):
                                               (feats[l + '_cost']+feats[l + '_trans_cost'] + feats['opp_cost']) * 20, 0)
             feats[l + '_relative_costs'] = np.where(feats[l + '_meat'] > 0,
                                                     feats[l + '_tot_cost'] / feats[l + '_meat'], 0)
+
     # Minimise total GHG emissions
     elif scenario == 'ghg':
 
@@ -435,31 +517,48 @@ def scoring(feats, scenario, carbon_price):
             feats[l + '_exp_emiss'] = 0
             feats[l + '_exp_costs'] = 0
 
-    elif scenario == 'biodiversity':
-
-        for l in landuses:
-            feats[l + '_biodiversity'] = feats['msalu']
 
     # Get meat production and GHG emissions of best land use per cell
-    if scenario in ['cscc', 'costs', 'ghg', 'biodiversity']:
-        columns = [l + '_rel_cost' for l in landuses]
+    if scenario in ['cscc', 'costs', 'ghg','msa']:
+        columns = [l + '_relative_costs' for l in landuses]
+        # print feats[columns]
 
-        feats['best_score'] = np.nanmin(feats[columns].values, axis=1)
-        feats['bestlu'] = np.nanargmin(feats[columns].values, axis=1)
+        feats['bestlu'] = feats[columns][feats[columns] > .01].idxmin(axis=1)
+        feats['best_score'] = feats[columns][feats[columns] > .01].min(axis=1)
+        feats['id'] = feats.index
+        feats['bestlu'] = feats['bestlu'].replace({'grass_low_relative_costs': 1,
+                                                   'grass_high_relative_costs': 2,
+                                                   'alfalfa_high_relative_costs': 3,
+                                                   'maize_relative_costs': 4,
+                                                   'soybean_relative_costs': 5,
+                                                   'wheat_relative_costs': 6})
+        # Get meat production value of placed landuse
+        cols = [l + '_meat' for l in landuses] + ['bestlu', 'best_score', 'id']
+        melted = pd.melt(feats[cols], id_vars=['bestlu', 'best_score', 'id'], var_name='landuse', value_name='meat')
+        melted['landuse'] = melted['landuse'].replace({'grass_low_meat': 1,
+                                                       'grass_high_meat': 2,
+                                                       'alfalfa_high_meat': 3,
+                                                       'maize_meat': 4,
+                                                       'soybean_meat': 5,
+                                                       'wheat_meat': 6})
 
-        # column names for optimal costs/emissions sources
-        optimal = ['production', 'opt_emissions', 'opt_exp_emiss', 'opt_exp_costs', 'opt_trans_emiss', 'opt_trans_cost',
-                   'opt_tot_cost', 'opt_ghg', 'opt_n2o']
+        feats.loc[feats['id'].isin(melted.id), 'production'] = \
+            feats.loc[feats['id'].isin(melted.id)][['id']].merge(melted.loc[melted.bestlu == melted.landuse],
+                                                                 how='left')['meat'].values
 
-        # Column suffixes for landuse specific costs/emissions sources
-        old = ['_meat', '_meth', '_exp_emiss', '_exp_costs', '_trans_emiss', '_trans_cost', '_tot_cost', '_ghg', '_n2o']
+        # Get GHG value of place landuse
+        ghgcols = [l + '_meat' for l in landuses] + ['bestlu', 'best_score', 'id']
+        melted = pd.melt(feats[ghgcols], id_vars=['bestlu', 'best_score', 'id'], var_name='landuse', value_name='ghg')
+        melted['landuse'] = melted['landuse'].replace({'grass_low_meat': 1,
+                                                       'grass_high_meat': 2,
+                                                       'alfalfa_high_meat': 3,
+                                                       'maize_meat': 4,
+                                                       'soybean_meat': 5,
+                                                       'wheat_meat': 6})
 
-        # Get costs/emissions sources for optimal land use
-        for new_name, old_name in zip(optimal, old):
-            feats[new_name] = np.take_along_axis(feats[[l + old_name for l in landuses]].values,
-                                                 feats['bestlu'].values[:, None], axis=1)
-
-        del allArrays
+        feats.loc[feats['id'].isin(melted.id), 'production'] = \
+            feats.loc[feats['id'].isin(melted.id)][['id']].merge(melted.loc[melted.bestlu == melted.landuse],
+                                                                 how='left')['ghg'].values
         return feats
 
 def trade(feats, scenario, carbon_price):
@@ -788,7 +887,7 @@ def export_grid(resolution):
     grid = create_grid(resolution)
     grid.to_file("init_grid"+str(float(resolution)*100)+"km.gpkg", driver = 'GPKG')
 
-def main(location = 'TLS', export_folder ='.', scenario = 'weighted_sum', trade_scenario = 'trade', cprice = 10, resolution = 0.1 , constraint = 'global',
+def main(location = 'AUS', export_folder ='.', scenario = 'msa_test', trade_scenario = 'notrade', cprice = 10, resolution = 0.1 , constraint = 'global',
          exp_global_cols = ['best_score', 'bestlu'], exp_changed_cols = ['best_score', 'bestlu', 'production'],
         grid = grid):
     """
@@ -810,7 +909,7 @@ def main(location = 'TLS', export_folder ='.', scenario = 'weighted_sum', trade_
 
     logger.info("Simulation start")
     # Calculate opportunity cost from suitable area and crop value (in '000 $)
-    grid["opp_cost"] = grid['suitable_area'] * grid["agri_opp_cost"]/1000.
+    #grid["opp_cost"] = grid['suitable_area'] * grid["agri_opp_cost"]/1000.
 
     # Set amount of beef to be produced based on the chosen location
     demand = beef_table.at[location, 'Value']
@@ -821,7 +920,7 @@ def main(location = 'TLS', export_folder ='.', scenario = 'weighted_sum', trade_
     start = time.time()
     # grid = parallelize(grid, scoring, ncores)
     grid = scoring(grid, scenario, carbon_price)
-
+    print(list(grid.columns.values))
     print('### Done scoring in {} seconds'.format(time.time()-start))
     logger.info("Done scoring")
 
@@ -960,7 +1059,8 @@ def main(location = 'TLS', export_folder ='.', scenario = 'weighted_sum', trade_
     # print('### Exporting rasters finished in {} seconds. ###'.format(time.time()-start))
     start = time.time()
     # grid.loc[grid['changed'] == 1].set_geometry('geometry').to_file(export_folder+"/grid_"+scenario+".gpkg", driver="GPKG")
-    grid.drop(['Diesel', 'glps', 'SOVEREIGNT'], axis =1).loc[grid.changed == 1].set_geometry('geometry').to_file(export_folder+"/grid_"+trade_scenario+ "_" + scenario+".gpkg", driver="GPKG")
+    #grid.drop(['Diesel', 'glps', 'SOVEREIGNT'], axis =1).loc[grid.changed == 1].set_geometry('geometry').to_file(export_folder+"/grid_"+trade_scenario+ "_" + scenario+".gpkg", driver="GPKG")
+    grid.set_geometry('geometry').to_file(export_folder+"/grid_all_cells_"+scenario+".gpkg", driver="GPKG")
     # grid.drop(months, axis =1).to_csv(export_folder+"/grid.csv")
     print('### Exporting GPKG finished in {} seconds. ###'.format(time.time()-start))
     logger.info("Exporting results finished")
