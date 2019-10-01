@@ -303,9 +303,14 @@ def scoring(feats, scenario, carbon_price):
         feats[l+'_n2o'] = n_applied * emission_factors[l] * 298
     print(list(feats.columns))
     feats['opp_cost'] = feats['opp_cost'].astype(float)
-    # try adding stuff here
+    # try adding stuff here------------------------------------------------------
+    # --------------------------------------------------------------------------
     feats["msa_sa"] = (feats['suitable_area'] * feats["msalu"])
     feats['msa_sa'] = feats['msa_sa'].astype(float)
+    feats["kbaw"] = (feats["kba"] * 100.)
+    feats['msa_sa_kba'] = (feats['msa_sa'] * feats["kbaw"])
+    feats['msa_sa_kba'] = feats['msa_sa_kba'].astype(float)
+
     feats = feats.fillna(0)
 
     # Only keep cells where at least 1 feed option produces meat
@@ -454,6 +459,38 @@ def scoring(feats, scenario, carbon_price):
                 bestlu = cell_scores[best_z_cell]
                 feats.at[index, 'bestlu'] = bestlu
                 feats.at[index, 'best_score'] = rel_MSA
+                feats.at[index, 'production'] = feats.at[index, bestlu + '_meat']
+            else:
+                # If there were no score for the cell, write no best land use
+                feats.at[index, 'bestlu'] = 'None'
+                feats.at[index, 'best_score'] = 99999
+                feats.at[index, 'production'] = 0
+
+        feats['bestlu'] = feats['bestlu'].replace({'None': 0,
+                                               'grass_low': 1,
+                                               'grass_high': 2,
+                                               'alfalfa_high': 3,
+                                               'maize': 4,
+                                               'soybean': 5,
+                                               'wheat': 6})
+        feats['bestlu'] = feats['bestlu'].astype(str).astype(int)
+        return feats
+
+    elif scenario == 'msa_sa_kba':
+        for index, cell in feats.iterrows():
+            cell_scores = {}
+            landuse_score = {}
+            rel_MSA = feats.at[index, 'msa_sa_kba']
+            best_z_landuse = rel_MSA
+            # Record the lowest score for each landuse, if any
+            if not isnan(best_z_landuse):
+                    cell_scores[best_z_landuse] = l
+            if len(cell_scores) > 0:
+                # If there is a score for the cell, select the lowest score and associated land use and write its meat prod.
+                best_z_cell = min(cell_scores)
+                bestlu = cell_scores[best_z_cell]
+                feats.at[index, 'bestlu'] = bestlu
+                feats.at[index, 'best_score'] = best_z_cell
                 feats.at[index, 'production'] = feats.at[index, bestlu + '_meat']
             else:
                 # If there were no score for the cell, write no best land use
@@ -967,7 +1004,7 @@ def export_grid(resolution):
     grid = create_grid(resolution)
     grid.to_file("init_grid"+str(float(resolution)*100)+"km.gpkg", driver = 'GPKG')
 
-def main(location = 'AUS', export_folder ='.', scenario = 'msa_landuse_test', trade_scenario = 'notrade', cprice = 10, resolution = 0.1 , constraint = 'global',
+def main(location = 'AUS', export_folder ='.', scenario = 'cost_test', trade_scenario = 'notrade', cprice = 10, resolution = 0.1 , constraint = 'global',
          exp_global_cols = ['best_score', 'bestlu'], exp_changed_cols = ['best_score', 'bestlu', 'production'],
         grid = grid):
     """
@@ -1000,7 +1037,7 @@ def main(location = 'AUS', export_folder ='.', scenario = 'msa_landuse_test', tr
     start = time.time()
     # grid = parallelize(grid, scoring, ncores)
     grid = scoring(grid, scenario, carbon_price)
-    print(list(grid.columns.values))
+    #print(list(grid.columns.values))
     print('### Done scoring in {} seconds'.format(time.time()-start))
     logger.info("Done scoring")
 
