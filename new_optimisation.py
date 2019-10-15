@@ -820,7 +820,10 @@ def main(location = 'TLS', export_folder ='.', scenario = 'weighted_sum', trade_
     grid["opp_cost"] = grid['suitable_area'] * grid["agri_opp_cost"]/1000.
 
     # Set amount of beef to be produced based on the chosen location
-    demand = beef_production.at[location, 'Value']
+    # demand = beef_production.at[location, 'Value']
+    demand = beef_demand.at[location, 'Demand']
+
+    # demand = beef_demand.loc[beef_demand.ADM0_A3 == location, 'Demand'].iloc[0]
 
     start_module = time.time()
 
