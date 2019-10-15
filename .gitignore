@@ -31,3 +31,7 @@ rasters/wheat_high.tif
 new_optimisation.py
 new_optimisation.py
 new_optimisation.py
+*.tif
+rasters/kba.tif.aux.xml
+rasters/msalu.tif.aux.xml
+new_optimisation_biodiversity_old.py

@@ -675,22 +675,30 @@ def scoring(feats, scenario, carbon_price):
                 # Do the weighted sum
                 for index, cell in feats.iterrows():
                     cell_scores = {}
+                    cell_lu_scores = {}
                     for l in landuses:
                         landuse_score = {}
+                        landuse_lu_score = {}
                         rel_MSA = feats.at[index, 'msa_sanorm_kbaw']
                         rel_cost = cell[l + '_rel_cost']
                         for lam in [0, 0.25, 0.5, 0.75, 1.]: ###
                             # for each landuse and each lambda value, calculate the best score
                             z = lam * rel_MSA + (1 - lam) * rel_cost
+                            zc = rel_cost
                             landuse_score[z] = lam
+                            landuse_lu_score[zc] = 1.
                         best_z_landuse = min(landuse_score)
+                        best_z_landuse_lu = min(landuse_lu_score)
                         # Record the lowest score for each landuse, if any
                         if not isnan(best_z_landuse):
                             cell_scores[best_z_landuse] = l
+                        if not isnan(best_z_landuse_lu):
+                            cell_lu_scores[best_z_landuse_lu] = l
                     if len(cell_scores) > 0:
                         # If there is a score for the cell, select the lowest score and associated land use and write its meat prod.
                         best_z_cell = min(cell_scores)
-                        bestlu = cell_scores[best_z_cell]
+                        best_z_lu_cell = min(cell_lu_scores)
+                        bestlu = cell_lu_scores[best_z_lu_cell]
                         feats.at[index, 'bestlu'] = bestlu
                         feats.at[index, 'best_score'] = best_z_cell
                         feats.at[index, 'production'] = feats.at[index, bestlu + '_meat']
@@ -849,7 +857,7 @@ def scoring(feats, scenario, carbon_price):
                         rel_cost = cell[l + '_rel_cost']
                         for lam in [1.]: ###
                             # for each landuse and each lambda value, calculate the best score
-                            z = lam * rel_MSA
+                            z = lam * rel_cost
                             landuse_score[z] = lam
                         best_z_landuse = min(landuse_score)
                         # Record the lowest score for each landuse, if any
@@ -860,7 +868,7 @@ def scoring(feats, scenario, carbon_price):
                         best_z_cell = min(cell_scores)
                         bestlu = cell_scores[best_z_cell]
                         feats.at[index, 'bestlu'] = bestlu
-                        feats.at[index, 'best_score'] = best_z_cell
+                        feats.at[index, 'best_score'] = rel_MSA
                         feats.at[index, 'production'] = feats.at[index, bestlu + '_meat']
                     else:
                         # If there were no score for the cell, write no best land use
@@ -905,7 +913,7 @@ def scoring(feats, scenario, carbon_price):
                         rel_cost = cell[l + '_rel_cost']
                         for lam in [1.]: ###
                             # for each landuse and each lambda value, calculate the best score
-                            z = lam * rel_MSA
+                            z = lam * rel_cost
                             landuse_score[z] = lam
                         best_z_landuse = min(landuse_score)
                         # Record the lowest score for each landuse, if any
@@ -916,7 +924,7 @@ def scoring(feats, scenario, carbon_price):
                         best_z_cell = min(cell_scores)
                         bestlu = cell_scores[best_z_cell]
                         feats.at[index, 'bestlu'] = bestlu
-                        feats.at[index, 'best_score'] = best_z_cell
+                        feats.at[index, 'best_score'] = rel_MSA
                         feats.at[index, 'production'] = feats.at[index, bestlu + '_meat']
                     else:
                         # If there were no score for the cell, write no best land use
@@ -961,7 +969,7 @@ def scoring(feats, scenario, carbon_price):
                         rel_cost = cell[l + '_rel_cost']
                         for lam in [ 1.]: ###
                             # for each landuse and each lambda value, calculate the best score
-                            z = lam * rel_MSA
+                            z = lam * rel_cost
                             landuse_score[z] = lam
                         best_z_landuse = min(landuse_score)
                         # Record the lowest score for each landuse, if any
@@ -972,7 +980,7 @@ def scoring(feats, scenario, carbon_price):
                         best_z_cell = min(cell_scores)
                         bestlu = cell_scores[best_z_cell]
                         feats.at[index, 'bestlu'] = bestlu
-                        feats.at[index, 'best_score'] = best_z_cell
+                        feats.at[index, 'best_score'] = rel_MSA
                         feats.at[index, 'production'] = feats.at[index, bestlu + '_meat']
                     else:
                         # If there were no score for the cell, write no best land use
