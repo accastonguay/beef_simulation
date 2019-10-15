@@ -52,11 +52,11 @@ grouped_ME = pd.read_csv("tables/nnls_group_ME.csv") # Load country groups
 grass_energy = pd.read_csv("tables/grass_energy.csv") # Load energy in grasses
 landuse_code = pd.read_csv("tables/landuse_coding.csv", index_col="code") # Load landuse coding to get land use names
 cmap = landuse_code.to_dict()['landuse'] # Change dataframe to dictionary
-beef_table = pd.read_csv("tables/beef_production.csv", index_col="Code") # Load country-level beef supply
+beef_production = pd.read_csv("tables/beef_production.csv", index_col="Code") # Load country-level beef supply
 fertiliser_prices = pd.read_csv("tables/fertiliser_prices.csv") # Load fertiliser prices
 nutrient_req_grass = pd.read_csv("tables/nutrient_req_grass.csv") # Load nutrient requirement for grasses
 nutrient_req_alfa = pd.read_csv("tables/nutrient_req_alfa.csv") # Load nutrient requirment for alfalfa
-bovine_supply = pd.read_csv("tables/bovine_supply.csv", index_col="ADM0_A3") # Load country-level beef demand
+beef_demand = pd.read_csv("tables/beef_demand.csv", index_col="ADM0_A3") # Load country-level beef demand
 sea_distances = pd.read_csv("tables/sea_distances.csv") # Load averaged distances between countries
 trans_margins = pd.read_csv("tables/trans_margins.csv") # Load country-level transport margins
 sea_t_costs = pd.read_csv("tables/sea_t_costs.csv") # Load transport costs
@@ -149,7 +149,7 @@ def zstats_partial(feats):
     return feats
 
 #@profile
-def scoring(feats, scenario, carbon_price):
+def scoring(feats, scenario, carbon_price, gap_reduce):
     """
     Finds the best landuse for each cell in the partition and returns the partition
 
@@ -158,6 +158,9 @@ def scoring(feats, scenario, carbon_price):
 
     Output: returns a gridded dataframe
     """
+    for i in ["maize_ratio", "soybean_ratio", "wheat_ratio"]:
+        ratios[i] = np.where(ratios[i] + int(gap_reduce) > 100, 100, ratios[i] + int(gap_reduce))
+
     # Initialise columns
     cols = ['_meat','_meth','_cost','_trans_cost', '_trans_emiss', '_cstock','_n2o','_tot_cost', '_ghg', '_rel_ghg', '_rel_cost']
     for l in landuses:
@@ -307,6 +310,7 @@ def scoring(feats, scenario, carbon_price):
     # Only keep cells where at least 1 feed option produces meat
     feats = feats.loc[feats[[l + '_meat' for l in landuses]].sum(axis=1) > 0]
 
+
     ### SCENARIOS
     if scenario == 'weighted_sum':
 
@@ -319,7 +323,9 @@ def scoring(feats, scenario, carbon_price):
             # For all landuse, calculate change in carbon stock
             stock_change = feats['carbon_stock'] * feats['suitable_area'] * 3.67 - feats[l + '_cstock']
             # Calculate total loss of carbon
+            feats[l + '_stock_schange'] = stock_change
             feats[l + '_ghg'] = stock_change + flow
+
             # Calculate costs and emissions per unit of meat produced for each land use. Convert 0 to NaN to avoid error
             feats[l + '_exp_emiss'] = 0
             feats[l + '_exp_costs'] = 0
@@ -344,10 +350,10 @@ def scoring(feats, scenario, carbon_price):
 
         # column names for optimal costs/emissions sources
         optimal = ['production', 'opt_emissions', 'opt_exp_emiss', 'opt_exp_costs', 'opt_trans_emiss', 'opt_trans_cost',
-                   'opt_tot_cost', 'opt_ghg', 'opt_n2o']
+                   'opt_tot_cost', 'opt_ghg', 'opt_n2o', 'opt_prod_cost', 'opt_stock_change']
 
         # Column suffixes for landuse specific costs/emissions sources
-        old = ['_meat', '_meth', '_exp_emiss', '_exp_costs', '_trans_emiss', '_trans_cost', '_tot_cost', '_ghg', '_n2o']
+        old = ['_meat', '_meth', '_exp_emiss', '_exp_costs', '_trans_emiss', '_trans_cost', '_tot_cost', '_ghg', '_n2o', '_cost','_stock_schange']
 
         # Get costs/emissions sources for optimal land use
         for new_name, old_name in zip(optimal, old):
@@ -381,6 +387,7 @@ def scoring(feats, scenario, carbon_price):
             # For all landuse, calculate emissions over 20 years
             flow = (feats[l + '_n2o'] + feats[l + '_meth'] + feats[l + '_trans_emiss']) * 20
             # For all landuse, calculate change in carbon stock
+
             stock_change = feats['carbon_stock'] * feats['suitable_area'] * 3.67 - feats[l + '_cstock']
             # Calculate total loss of carbon
             feats[l + '_ghg'] = stock_change + flow
@@ -401,10 +408,10 @@ def scoring(feats, scenario, carbon_price):
 
         # column names for optimal costs/emissions sources
         optimal = ['production', 'opt_emissions', 'opt_exp_emiss', 'opt_exp_costs', 'opt_trans_emiss', 'opt_trans_cost',
-                   'opt_tot_cost', 'opt_ghg', 'opt_n2o']
+                   'opt_tot_cost', 'opt_ghg', 'opt_n2o', 'opt_prod_cost']
 
         # Column suffixes for landuse specific costs/emissions sources
-        old = ['_meat', '_meth', '_exp_emiss', '_exp_costs', '_trans_emiss', '_trans_cost', '_tot_cost', '_ghg', '_n2o']
+        old = ['_meat', '_meth', '_exp_emiss', '_exp_costs', '_trans_emiss', '_trans_cost', '_tot_cost', '_ghg', '_n2o', '_cost']
 
         # Get costs/emissions sources for optimal land use
         for new_name, old_name in zip(optimal, old):
@@ -433,6 +440,8 @@ def scoring(feats, scenario, carbon_price):
             feats[l + '_rel_cost'] = np.where(feats[l + '_meat'] > 0, feats[l + '_meth'] / feats[l + '_meat'], np.nan)
             feats[l + '_exp_emiss'] = 0
             feats[l + '_exp_costs'] = 0
+    else:
+        print('Scenarios not in choice')
     # Get meat production and GHG emissions of best land use per cell
     if scenario in ['cscc', 'costs', 'ghg']:
         columns = [l + '_rel_cost' for l in landuses]
@@ -468,7 +477,10 @@ def trade(feats, scenario, carbon_price):
             feats[l + '_trans_cost'] = ntrips * feats["distance_port"] * feats['Diesel'] * fuel_efficiency/ 1000.
 
             # Calculate international transport costs based on average sea distance (km), transport cost to port, used for FOB ('000$) and transport cost percentage ($/(FOB*km))
-            feats[l + '_exp_costs'] =  feats[['ADM0_A3']].merge(sea_distances[['ADM0_A3', 'ave_distance']], how='left')['ave_distance'].values * feats[l + '_trans_cost'] * feats[['ADM0_A3']].merge(sea_t_costs[['ADM0_A3', 'tcost']], how='left')['tcost'].values
+            # feats[l + '_exp_costs'] =  feats[['ADM0_A3']].merge(sea_distances[['ADM0_A3', 'ave_distance']], how='left')['ave_distance'].values * feats[l + '_trans_cost'] * feats[['ADM0_A3']].merge(sea_t_costs[['ADM0_A3', 'tcost']], how='left')['tcost'].values
+
+            # Calculate transport costs as a function of quantity traded
+            feats[l + '_exp_costs'] =  feats[l + '_meat'] * feats[['ADM0_A3']].merge(sea_t_costs[['ADM0_A3', 'tcost']], how='left')['tcost'].values
 
             # Transport emissions to port
             feats[l + '_trans_emiss'] = ntrips * feats["distance_port"] * fuel_efficiency * truck_emission_factor / 1000.
@@ -483,6 +495,8 @@ def trade(feats, scenario, carbon_price):
             flow = (feats[l + '_n2o'] + feats[l + '_meth'] + feats[l + '_trans_emiss'] + feats[l + '_exp_emiss'] ) * 20
             # Calculate change in carbon stock (t CO2 eq)
             stock_change = feats['carbon_stock'] * feats['suitable_area'] * 3.67 - feats[l + '_cstock']
+            feats[l + '_stock_schange'] = stock_change
+
             # Calculate total loss of carbon (t CO2 eq)
             feats[l + '_ghg'] = stock_change + flow
             # Calculate costs and emissions per unit of meat produced for each land use. Convert 0 to NaN to avoid error
@@ -509,10 +523,11 @@ def trade(feats, scenario, carbon_price):
 
         # column names for optimal costs/emissions sources
         optimal = ['production', 'opt_emissions', 'opt_exp_emiss', 'opt_exp_costs', 'opt_trans_emiss', 'opt_trans_cost',
-                   'opt_tot_cost', 'opt_ghg', 'opt_n2o']
+                   'opt_tot_cost', 'opt_ghg', 'opt_n2o', 'opt_prod_cost', 'opt_stock_change']
 
         # Column suffixes for landuse specific costs/emissions sources
-        old = ['_meat', '_meth', '_exp_emiss', '_exp_costs', '_trans_emiss', '_trans_cost', '_tot_cost', '_ghg', '_n2o']
+        old = ['_meat', '_meth', '_exp_emiss', '_exp_costs', '_trans_emiss', '_trans_cost', '_tot_cost', '_ghg', '_n2o',
+               '_cost', '_stock_schange']
 
         # Get costs/emissions sources for optimal land use
         for new_name, old_name in zip(optimal, old):
@@ -564,10 +579,11 @@ def trade(feats, scenario, carbon_price):
         feats['bestlu'] = np.nanargmin(allArrays, axis=1)
 
         # column names for optimal costs/emissions sources
-        optimal = ['production', 'opt_emissions', 'opt_exp_emiss', 'opt_exp_costs', 'opt_trans_emiss', 'opt_trans_cost', 'opt_tot_cost', 'opt_ghg', 'opt_n2o']
+        optimal = ['production', 'opt_emissions', 'opt_exp_emiss', 'opt_exp_costs', 'opt_trans_emiss', 'opt_trans_cost',
+                   'opt_tot_cost', 'opt_ghg', 'opt_n2o', 'opt_prod_cost']
 
         # Column suffixes for landuse specific costs/emissions sources
-        old = ['_meat', '_meth', '_exp_emiss', '_exp_costs', '_trans_emiss', '_trans_cost', '_tot_cost', '_ghg', '_n2o']
+        old = ['_meat', '_meth', '_exp_emiss', '_exp_costs', '_trans_emiss', '_trans_cost', '_tot_cost', '_ghg', '_n2o', '_cost']
 
         # Get costs/emissions sources for optimal land use
         for new_name, old_name in zip(optimal, old):
@@ -670,7 +686,7 @@ def create_grid(location, resolution):
     # Filter countries on location argument
     if "Global" in location:
         extent = extent[extent.SOVEREIGNT.notnull() & (extent.SOVEREIGNT != "Antarctica")]
-    elif location in beef_table.index:
+    elif location in beef_production.index:
         extent = extent[extent.ADM0_A3 == location]
     else:
         print("Location not in choices")
@@ -696,8 +712,6 @@ def create_grid(location, resolution):
     grid = gpd.GeoDataFrame({'geometry': polygons})
     print('Created whole grid in {} seconds'.format(time.time() - start_init))
 
-    # grid.to_file(export_folder+"/grid1_"+location+".gpkg", driver="GPKG")
-
     grid.crs = {'init': 'epsg:4326'}
 
 
@@ -718,7 +732,7 @@ def create_grid(location, resolution):
 
     if "Global" in location:
         grid = grid[(grid.ADM0_A3.notnull())]
-    elif location in beef_table.index:
+    elif location in beef_production.index:
         grid = grid[(grid.ADM0_A3 == location) & (grid.ADM0_A3.notnull())]
     else:
         print("no beef demand for location")
@@ -757,7 +771,7 @@ def export_raster(grid, b, resolution, export_column, scenario, export_folder, s
             'compress': 'lzw',
             }
         # for m in meta: print(m, meta[m])
-        out_fn = export_folder + '/' + scenario + "_" + i + '_' + scale + ".tif"
+        out_fn = export_folder + '/' + scenario + "_" + i + '_' + str(scale) + ".tif"
 
         with rasterio.open(out_fn, 'w', **meta) as out:
             # Create a generator for geom and value pairs
@@ -781,7 +795,7 @@ def export_grid(resolution):
     grid = create_grid(resolution)
     grid.to_file("init_grid"+str(float(resolution)*100)+"km.gpkg", driver = 'GPKG')
 
-def main(location = 'TLS', export_folder ='.', scenario = 'weighted_sum', trade_scenario = 'trade', cprice = 10, resolution = 0.1 , constraint = 'global',
+def main(location = 'TLS', export_folder ='.', scenario = 'weighted_sum', trade_scenario = 'trade', gap_reduce = 0, cprice = 10, resolution = 0.1 , constraint = 'global',
          exp_global_cols = ['best_score', 'bestlu'], exp_changed_cols = ['best_score', 'bestlu', 'production'],
         grid = grid):
     """
@@ -806,14 +820,13 @@ def main(location = 'TLS', export_folder ='.', scenario = 'weighted_sum', trade_
     grid["opp_cost"] = grid['suitable_area'] * grid["agri_opp_cost"]/1000.
 
     # Set amount of beef to be produced based on the chosen location
-    demand = beef_table.at[location, 'Value']
+    demand = beef_production.at[location, 'Value']
 
     start_module = time.time()
 
     # Parallelise the scoring
     start = time.time()
-    # grid = parallelize(grid, scoring, ncores)
-    grid = scoring(grid, scenario, carbon_price)
+    grid = scoring(grid, scenario, carbon_price, gap_reduce)
 
     print('### Done scoring in {} seconds'.format(time.time()-start))
     logger.info("Done scoring")
@@ -828,7 +841,7 @@ def main(location = 'TLS', export_folder ='.', scenario = 'weighted_sum', trade_
     grid['destination'] = 0
     grid['exporting'] = 0
     # Get country-level domestic demand
-    grid['dom_demand'] = grid.merge(bovine_supply, how='left', left_on='ADM0_A3', right_index=True)['Demand']
+    grid['dom_demand'] = grid.merge(beef_demand, how='left', left_on='ADM0_A3', right_index=True)['Demand']
     # Sort rows by increasing 'best score'
     grid = grid.sort_values('best_score')
     # Get cumulative country level production in order of increasing best score
@@ -862,9 +875,6 @@ def main(location = 'TLS', export_folder ='.', scenario = 'weighted_sum', trade_
                                                                                                        'exporting'] == 1)), 'best_score'].max()), 'changed'] = 1
 
             # Select all countries that have been converted and that are not yet exporting for which we recalculate costs
-            # ADM0_A3 = grid.loc[(grid.best_score <= grid.loc[grid.changed == 1].best_score.max()) &
-            #                    (grid.exporting == 0) &
-            #                    (grid.destination == 0), 'ADM0_A3']
             ADM0_A3 = grid.loc[(grid.best_score <= grid.loc[grid.changed == 1].best_score.max()) &
                                (grid.exporting == 0) &
                                (grid.destination == 0) &
@@ -892,7 +902,7 @@ def main(location = 'TLS', export_folder ='.', scenario = 'weighted_sum', trade_
             new_production = total_production - old_production
             logger.info("Total production: {}".format(total_production))
     else:
-        # Aggregate beef production by increasing order of score
+        # Calculate cumulative beef production by increasing score
         grid['cumprod'] = grid['production'].cumsum()
         # Convert cells as long as the targeted demand has not been achieved
         grid.loc[(demand + grid['production'] - grid['cumprod']) > 0, 'changed'] = 1
@@ -914,9 +924,9 @@ def main(location = 'TLS', export_folder ='.', scenario = 'weighted_sum', trade_
     #         # Record country
     #         country = cell["ADM0_A3"]
     #         # Check if the demand has been achieved and if there is demand in the country:
-    #         if total_production < demand and country in beef_table.index:
+    #         if total_production < demand and country in beef_production.index:
     #             # Get beef demand in the country of the cell
-    #             country_demand = beef_table.at[country, 'Value']
+    #             country_demand = beef_production.at[country, 'Value']
     #             # Get beef production from optimal landuse for this cell
     #             cell_production = grid.at[index, "production"]
     #             # Check if beef has previously been produced in this country
@@ -943,26 +953,19 @@ def main(location = 'TLS', export_folder ='.', scenario = 'weighted_sum', trade_
     ######### Export #########
 
     # start = time.time()
-    # grid.drop('centroid_column', axis = 1).set_geometry('geometry').to_file(export_folder+"/opt_"+location+".gpkg", driver="GPKG")
-    # grid.to_file(export_folder+"/opt_"+location+ "_" + scenario +".gpkg", driver="GPKG")
+    grid.to_file(export_folder + '/' + scenario + "_" + str(gap_reduce) + ".gpkg", driver="GPKG")
     # b = list(grid.total_bounds)
+    # export_raster(grid.loc[grid['changed'] == 1], b, 0.0833, ['production', 'opt_emissions'], scenario, export_folder, gap_reduce)
 
-    # export_raster(grid, b, resolution,  exp_global_cols, scenario, export_folder, 'glo')
-    # # print('Changed in columns: {}'.format('changed' in grid.columns))
-    # export_raster(grid.loc[grid['changed'] == 1], b, resolution, exp_changed_cols, scenario, export_folder, 'cha')
-    # print('### Exporting rasters finished in {} seconds. ###'.format(time.time()-start))
     start = time.time()
-    # grid.loc[grid['changed'] == 1].set_geometry('geometry').to_file(export_folder+"/grid_"+scenario+".gpkg", driver="GPKG")
-    grid.drop(['Diesel', 'glps', 'SOVEREIGNT'], axis =1).loc[grid.changed == 1].set_geometry('geometry').to_file(export_folder+"/grid_"+trade_scenario+ "_" + scenario+".gpkg", driver="GPKG")
-    # grid.drop(months, axis =1).to_csv(export_folder+"/grid.csv")
+
     print('### Exporting GPKG finished in {} seconds. ###'.format(time.time()-start))
     logger.info("Exporting results finished")
 
-# def parallelise(location, resolution, export_folder, constraint, exp_global_cols, exp_changed_cols):
-#     for i in ["weighted_sum"]:
-#     # for i in ["weighted_sum"]:
-#         Process(target=main, args = (location, resolution, export_folder, constraint,  exp_global_cols,
-#                                      exp_changed_cols, i,)).start()
+def parallelise(location, export_folder, scenario, trade_scenario):
+    for i in range(0,100,10):
+    # for i in ["weighted_sum"]:
+        Process(target=main, args = (location, export_folder, scenario, trade_scenario, i,)).start()
 
 if __name__ == '__main__':
     import argparse
@@ -977,7 +980,8 @@ if __name__ == '__main__':
     # argparser.add_argument('--exp_changed_cols', nargs='+', help='Which column to export as changed rasters')
     argparser.add_argument('scenario', help='Which scenario of optimisation to run ("weighted_sum", "carbon_price", "cscc", "costs", "ghg")')
     argparser.add_argument('trade_scenario', help="Trade scenario('trade' or 'notrade') ")
-    argparser.add_argument('--cprice', help="Optional argumnet: Price of carbon (US$/t CO eq) to use if scenario is 'carbon_price'")
+    argparser.add_argument('--cprice', help="Optional argument: Price of carbon (US$/t CO eq) to use if scenario is 'carbon_price'")
+    argparser.add_argument('--ratio', help="Optional argument: Percentage reduction in yield gap")
 
     args = argparser.parse_args()
     location = args.location
@@ -990,7 +994,8 @@ if __name__ == '__main__':
     scenario = args.scenario
     trade_scenario = args.trade_scenario
     cprice = args.cprice
+    ratio = args.ratio
 
     # scenario = args.scenario
-    # parallelise(location, resolution, export_folder, constraint, exp_global_cols, exp_changed_cols)
-    main(location, export_folder, scenario, trade_scenario, cprice)
+    # parallelise(location, export_folder, scenario, trade_scenario)
+    main(location, export_folder, scenario, trade_scenario)
