@@ -357,9 +357,9 @@ def scoring(feats, scenario, carbon_price, gap_reduce, lam):
             # feats[l+'_rel_cost'] = np.where(feats[l+'_meat'] == 0, np.NaN, feats[l+'_tot_cost']/(feats[l+'_meat']))
             feats[l+'_rel_ghg'] = feats[l+'_ghg']/feats[l+'_meat']
             feats[l+'_rel_cost'] = feats[l+'_tot_cost']/feats[l+'_meat']
-        print('Size before: ', feats.shape[0])
+        # print('Size before: ', feats.shape[0])
         feats = feats.dropna(how='all', subset=[l+'_rel_ghg' for l in landuses] + [l+'_rel_cost' for l in landuses])
-        print('Size after: ', feats.shape[0])
+        # print('Size after: ', feats.shape[0])
 
         # Set of weights
         # costw = np.array([0, 0.25, 0.5, 0.75, 1])
@@ -511,9 +511,9 @@ def trade(feats, scenario, carbon_price, lam):
             # feats[l+'_rel_cost'] = np.where(feats[l+'_meat'] == 0, np.NaN, feats[l+'_tot_cost']/(feats[l+'_meat']))
             feats[l+'_rel_ghg'] = feats[l+'_ghg']/feats[l+'_meat']
             feats[l+'_rel_cost'] = feats[l+'_tot_cost']/feats[l+'_meat']
-        print('Size before: ', feats.shape[0])
+        # print('Size before: ', feats.shape[0])
         feats = feats.dropna(how='all', subset=[l+'_rel_ghg' for l in landuses] + [l+'_rel_cost' for l in landuses])
-        print('Size after: ', feats.shape[0])
+        # print('Size after: ', feats.shape[0])
 
         # # List weights
         # costw = np.array([0, 0.25, 0.5, 0.75, 1])
