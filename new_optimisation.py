@@ -334,7 +334,7 @@ def scoring(feats, scenario, carbon_price, gap_reduce, lam):
     feats = feats.loc[feats[[l + '_meat' for l in landuses]].sum(axis=1) > 0]
     feats['grass_transition'] = eac(feats['grass_transition'])
     ### SCENARIOS
-    if scenario == 'weighted_sum':
+    if optimisation_method== 'weighted_sum':
 
         for l in landuses:
             # For all landuse, calculate total costs over 20 years
@@ -386,7 +386,7 @@ def scoring(feats, scenario, carbon_price, gap_reduce, lam):
         return feats
 
     # Minimise total costs given country-level social cost of carbon
-    # elif scenario == 'cscc':
+    # elif optimisation_method== 'cscc':
     #     for l in landuses:
     #         feats[l + '_tot_cost'] = np.where(feats[l + '_meat'] > 0, feats['grass_transition'] + \
     #                                           (feats[l + '_cost'] + feats[l + '_trans_cost'] + feats['opp_cost']),
@@ -401,7 +401,7 @@ def scoring(feats, scenario, carbon_price, gap_reduce, lam):
     #         feats[l + '_relative_costs'] = np.where(feats[l + '_meat'] > 0,
     #                                                 feats[l + '_all_costs'] / feats[l + '_meat'], 0)
 
-    # elif scenario == 'carbon_price':
+    # elif optimisation_method== 'carbon_price':
     #     for l in landuses:
     #         # For all landuse, calculate total costs over 20 years
     #         feats[l + '_tot_cost'] = feats['grass_transition'] + \
@@ -449,7 +449,7 @@ def scoring(feats, scenario, carbon_price, gap_reduce, lam):
     else:
         print('Scenarios not in choice')
     # Get meat production and GHG emissions of best land use per cell
-    # if scenario in ['cscc', 'costs', 'ghg']:
+    # if optimisation_methodin ['cscc', 'costs', 'ghg']:
     #     columns = [l + '_rel_cost' for l in landuses]
     #
     #     feats['best_score'] = np.nanmin(feats[columns].values, axis=1)
@@ -472,7 +472,7 @@ def scoring(feats, scenario, carbon_price, gap_reduce, lam):
 
 def trade(feats, scenario, carbon_price, lam):
 
-    if scenario == 'weighted_sum':
+    if optimisation_method== 'weighted_sum':
 
         for l in landuses:
             # For all landuse, calculate total costs over 20 years
@@ -541,7 +541,7 @@ def trade(feats, scenario, carbon_price, lam):
         del allArrays
         return feats
 
-    # if scenario == 'carbon_price':
+    # if optimisation_method== 'carbon_price':
     #
     #     for l in landuses:
     #         # For all landuse, calculate total costs over 20 years
@@ -724,7 +724,7 @@ def export_raster(grid, resolution, export_column, scenario, export_folder, scal
             'compress': 'lzw',
             }
         # for m in meta: print(m, meta[m])
-        out_fn = export_folder + '/' + scenario + "_" + i + '_' + str(scale) + ".tif"
+        out_fn = export_folder + '/' + optimisation_method+ "_" + i + '_' + str(scale) + ".tif"
             
         with rasterio.open(out_fn, 'w', **meta) as out:
             # Create a generator for geom and value pairs
@@ -748,7 +748,7 @@ def export_grid(resolution):
     grid = create_grid(resolution)
     grid.to_file("init_grid"+str(float(resolution)*100)+"km.gpkg", driver = 'GPKG')
 
-def main(export_folder ='.', scenario = 'weighted_sum', lam = 0.5, demand_scenario = 'Demand',
+def main(export_folder ='.', optimisation_method= 'weighted_sum', lam = 0.5, demand_scenario = 'Demand',
          cprice = 10, trade_scenario = 'trade', gap_reduce = 0,  resolution = 0.1 , constraint = 'global',
          exp_global_cols = ['best_score', 'bestlu'], exp_changed_cols = ['best_score', 'bestlu', 'production'],
          rate = 0.05, lifespan = 20,
@@ -924,7 +924,7 @@ def main(export_folder ='.', scenario = 'weighted_sum', lam = 0.5, demand_scenar
                           "area": grid.suitable_area.sum(),
                           "scenario": [demand_scenario],
                           "weight" : [str(lam)]})
-    newdf.to_csv(export_folder + '/' + scenario + "_" + str(lam) + "_" + demand_scenario + ".csv", index=False)
+    newdf.to_csv(export_folder + '/' + optimisation_method+ "_" + str(lam) + "_" + demand_scenario + ".csv", index=False)
     logger.info("Exporting GPKG finished")
 
     start = time.time()
