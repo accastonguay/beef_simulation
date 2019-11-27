@@ -167,7 +167,7 @@ def zstats_partial(feats):
     return feats
 
 #@profile
-def scoring(feats, scenario, carbon_price, gap_reduce, lam):
+def scoring(feats, optimisation_method, carbon_price, gap_reduce, lam):
     """
     Finds the best landuse for each cell in the partition and returns the partition
 
@@ -334,7 +334,7 @@ def scoring(feats, scenario, carbon_price, gap_reduce, lam):
     feats = feats.loc[feats[[l + '_meat' for l in landuses]].sum(axis=1) > 0]
     feats['grass_transition'] = eac(feats['grass_transition'])
     ### SCENARIOS
-    if optimisation_method== 'weighted_sum':
+    if optimisation_method == 'weighted_sum':
 
         for l in landuses:
             # For all landuse, calculate total costs over 20 years
@@ -352,13 +352,10 @@ def scoring(feats, scenario, carbon_price, gap_reduce, lam):
             feats[l + '_exp_emiss'] = 0
             feats[l + '_exp_costs'] = 0
             # Calculate relative GHG and costs
-            # if l + '_meat' in feats:
-            # feats[l+'_rel_ghg'] = np.where(feats[l+'_meat'] == 0, np.NaN, feats[l+'_ghg']/(feats[l+'_meat']))
-            # feats[l+'_rel_cost'] = np.where(feats[l+'_meat'] == 0, np.NaN, feats[l+'_tot_cost']/(feats[l+'_meat']))
-            feats[l+'_rel_ghg'] = feats[l+'_ghg']/feats[l+'_meat']
-            feats[l+'_rel_cost'] = feats[l+'_tot_cost']/feats[l+'_meat']
+            feats[l+'_rel_ghg'] = np.where(feats[l+'_meat'] == 0, np.NaN, feats[l+'_ghg']/(feats[l+'_meat']))
+            feats[l+'_rel_cost'] = np.where(feats[l+'_meat'] == 0, np.NaN, feats[l+'_tot_cost']/(feats[l+'_meat']))
+
         # print('Size before: ', feats.shape[0])
-        feats = feats.dropna(how='all', subset=[l+'_rel_ghg' for l in landuses] + [l+'_rel_cost' for l in landuses])
         # print('Size after: ', feats.shape[0])
 
         # Set of weights
@@ -368,11 +365,30 @@ def scoring(feats, scenario, carbon_price, gap_reduce, lam):
         # list_scores = [np.min(np.dot(feats[i + '_rel_ghg'].values[:, None], (1 - costw)[None, :]) +
         #                       np.dot(feats[i + '_rel_cost'].values[:, None], costw[None, :]), axis=1) for i in landuses]
 
+        feats = feats.dropna(how='all', subset=[l+'_rel_ghg' for l in landuses] + [l+'_rel_cost' for l in landuses])
+        # temp = pd.DataFrame()
+        # for i in landuses:
+        #     # temp[i + '_rel_ghg'] = feats[i + '_rel_ghg']
+        #     # temp[i + '_rel_cost'] = feats[i + '_rel_cost']
+        #
+        #     feats[i + '_score'] = (feats[i + '_rel_ghg'].values * (1 - lam)) + (feats[i + '_rel_cost'].values * lam)
+        # temp = feats[pd.isnull(feats[[l+'_score' for l in landuses]]).all(axis=1)]
+        #
+        # logger.info('Rows in TEMP where all rel_ghg are null: ')
+        # logger.info(temp[pd.isnull(temp[[l+'_score' for l in landuses]]).all(axis=1)])
+        #
+        # temp.to_csv(export_folder + '/test.csv',
+        #              index=False)
+
+
+
         ### new weighted sum
         list_scores = [(feats[i + '_rel_ghg'].values * (1 - lam)) +
                        (feats[i + '_rel_cost'].values * lam) for i in landuses]
-        # Stack arrays
+        # # Stack arrays
         allArrays = np.stack(list_scores, axis=-1)
+        #
+        logger.info(allArrays[np.isnan(allArrays).all(axis=1)].shape)
 
         feats['best_score'] = np.nanmin(allArrays, axis=1)
         feats['bestlu'] = np.nanargmin(allArrays, axis=1)
@@ -448,31 +464,11 @@ def scoring(feats, scenario, carbon_price, gap_reduce, lam):
 
     else:
         print('Scenarios not in choice')
-    # Get meat production and GHG emissions of best land use per cell
-    # if optimisation_methodin ['cscc', 'costs', 'ghg']:
-    #     columns = [l + '_rel_cost' for l in landuses]
-    #
-    #     feats['best_score'] = np.nanmin(feats[columns].values, axis=1)
-    #     feats['bestlu'] = np.nanargmin(feats[columns].values, axis=1)
-    #
-    #     # column names for optimal costs/emissions sources
-    #     optimal = ['production', 'opt_emissions', 'opt_exp_emiss', 'opt_exp_costs', 'opt_trans_emiss', 'opt_trans_cost',
-    #                'opt_tot_cost', 'opt_ghg', 'opt_n2o']
-    #
-    #     # Column suffixes for landuse specific costs/emissions sources
-    #     old = ['_meat', '_meth', '_exp_emiss', '_exp_costs', '_trans_emiss', '_trans_cost', '_tot_cost', '_ghg', '_n2o']
-    #
-    #     # Get costs/emissions sources for optimal land use
-    #     for new_name, old_name in zip(optimal, old):
-    #         feats[new_name] = np.take_along_axis(feats[[l + old_name for l in landuses]].values,
-    #                                              feats['bestlu'].values[:, None], axis=1)
-    #
-    #     del allArrays
-    #     return feats
 
-def trade(feats, scenario, carbon_price, lam):
+def trade(feats, optimisation_method, carbon_price, lam):
+    logger.info(feats.shape[0])
 
-    if optimisation_method== 'weighted_sum':
+    if optimisation_method == 'weighted_sum':
 
         for l in landuses:
             # For all landuse, calculate total costs over 20 years
@@ -483,7 +479,6 @@ def trade(feats, scenario, carbon_price, lam):
             feats[l + '_trans_cost'] = ntrips * feats["distance_port"] * feats['Diesel'] * fuel_efficiency/ 1000.
 
             # Calculate international transport costs based on average sea distance (km), transport cost to port, used for FOB ('000$) and transport cost percentage ($/(FOB*km))
-            # feats[l + '_exp_costs'] =  feats[['ADM0_A3']].merge(sea_distances[['ADM0_A3', 'ave_distance']], how='left')['ave_distance'].values * feats[l + '_trans_cost'] * feats[['ADM0_A3']].merge(sea_t_costs[['ADM0_A3', 'tcost']], how='left')['tcost'].values
 
             # Calculate transport costs as a function of quantity traded
             feats[l + '_exp_costs'] =  feats[l + '_meat'] * feats[['ADM0_A3']].merge(sea_t_costs[['ADM0_A3', 'tcost']], how='left')['tcost'].values
@@ -506,13 +501,17 @@ def trade(feats, scenario, carbon_price, lam):
             # Calculate costs and emissions per unit of meat produced for each land use. Convert 0 to NaN to avoid error
 
             # Calculate relative GHG and costs
-            # if l + '_meat' in feats:
-            # feats[l+'_rel_ghg'] = np.where(feats[l+'_meat'] == 0, np.NaN, feats[l+'_ghg']/(feats[l+'_meat']))
-            # feats[l+'_rel_cost'] = np.where(feats[l+'_meat'] == 0, np.NaN, feats[l+'_tot_cost']/(feats[l+'_meat']))
-            feats[l+'_rel_ghg'] = feats[l+'_ghg']/feats[l+'_meat']
-            feats[l+'_rel_cost'] = feats[l+'_tot_cost']/feats[l+'_meat']
+            feats[l+'_rel_ghg'] = np.where(feats[l+'_meat'] == 0, np.NaN, feats[l+'_ghg']/(feats[l+'_meat']))
+            feats[l+'_rel_cost'] = np.where(feats[l+'_meat'] == 0, np.NaN, feats[l+'_tot_cost']/(feats[l+'_meat']))
+            # feats[l+'_rel_ghg'] = feats[l+'_ghg']/feats[l+'_meat']
+            # feats[l+'_rel_cost'] = feats[l+'_tot_cost']/feats[l+'_meat']
         # print('Size before: ', feats.shape[0])
+        logger.info(feats.shape[0])
+
         feats = feats.dropna(how='all', subset=[l+'_rel_ghg' for l in landuses] + [l+'_rel_cost' for l in landuses])
+
+        logger.info(feats.shape[0])
+        if feats.shape[0] > 0:
         # print('Size after: ', feats.shape[0])
 
         # # List weights
@@ -523,23 +522,26 @@ def trade(feats, scenario, carbon_price, lam):
         #                       (feats[i + '_rel_cost'].values[:, None] * costw[None, :]), axis=1) for i in landuses]
 
         # New weighted sum
-        list_scores = [(feats[i + '_rel_ghg'].values * (1 - lam)) +
-                       (feats[i + '_rel_cost'].values * lam) for i in landuses]
-        # Stack arrays horizontally
-        allArrays = np.stack(list_scores, axis=-1)
+            list_scores = [(feats[i + '_rel_ghg'].values * (1 - lam)) +
+                           (feats[i + '_rel_cost'].values * lam) for i in landuses]
+            # Stack arrays horizontally
+            allArrays = np.stack(list_scores, axis=-1)
 
-        # Take lowest score across feed options
-        feats['best_score'] = np.nanmin(allArrays, axis=1)
-        # Get best feed option based on position of best score
-        feats['bestlu'] = np.nanargmin(allArrays, axis=1)
+            # Take lowest score across feed options
+            feats['best_score'] = np.nanmin(allArrays, axis=1)
+            # Get best feed option based on position of best score
+            feats['bestlu'] = np.nanargmin(allArrays, axis=1)
 
-        # column names for optimal costs/emissions sources
-        for i in new_colnames:
-            feats[i] = np.take_along_axis(feats[[l + new_colnames[i] for l in landuses]].values,
-                                                     feats['bestlu'].values[:, None], axis=1)
+            # column names for optimal costs/emissions sources
+            logger.info(feats.head())
+            logger.info(feats['bestlu'].head())
 
-        del allArrays
-        return feats
+            for i in new_colnames:
+                feats[i] = np.take_along_axis(feats[[l + new_colnames[i] for l in landuses]].values,
+                                                         feats['bestlu'].values[:, None], axis=1)
+
+            del allArrays
+            return feats
 
     # if optimisation_method== 'carbon_price':
     #
@@ -693,7 +695,7 @@ def create_grid(location, resolution):
 
     return grid
 
-def export_raster(grid, resolution, export_column, scenario, export_folder, scale):
+def export_raster(grid, resolution, export_column, optimisation_method, export_folder, scale):
 
     bounds = list(grid.total_bounds)
     
@@ -782,7 +784,7 @@ def main(export_folder ='.', optimisation_method= 'weighted_sum', lam = 0.5, dem
 
     # Parallelise the scoring
     start = time.time()
-    grid = scoring(grid, scenario, carbon_price, gap_reduce, lam)
+    grid = scoring(grid, optimisation_method, carbon_price, gap_reduce, lam)
 
     print('### Done scoring in {} seconds'.format(time.time()-start))
     logger.info("Done scoring")
@@ -843,7 +845,7 @@ def main(export_folder ='.', optimisation_method= 'weighted_sum', lam = 0.5, dem
             # Recalculate costs and emissions of cells from listed countries
             if grid.loc[(grid['ADM0_A3'].isin(ADM0_A3)) & (grid['changed'] == 0)].shape[0] > 0:
                 grid.loc[(grid['ADM0_A3'].isin(ADM0_A3)) & (grid['changed'] == 0)] = trade(
-                    grid.loc[(grid['ADM0_A3'].isin(ADM0_A3)) & (grid['changed'] == 0)], scenario, carbon_price, lam)
+                    grid.loc[(grid['ADM0_A3'].isin(ADM0_A3)) & (grid['changed'] == 0)], optimisation_method, carbon_price, lam)
             logger.info("Trade done in {}".format(time.time() - start))
             # Set destination of production depending on whether domestic demand is met (1 = local; 2 = international)
             grid.loc[(grid['destination'] == 0) &
@@ -908,10 +910,10 @@ def main(export_folder ='.', optimisation_method= 'weighted_sum', lam = 0.5, dem
     ######### Export #########
     # start = time.time()
     # cols = list(new_colnames.keys()) + ['geometry', 'best_score', 'bestlu', 'destination', 'suitable_area', 'opp_cost', 'grass_transition']
-    # grid.loc[grid['changed'] == 1].drop(months, axis = 1).to_file(export_folder + '/' + scenario + "_" + str(lam) + ".gpkg", driver="GPKG")
+    # grid.loc[grid['changed'] == 1].drop(months, axis = 1).to_file(export_folder + '/' + optimisation_method + "_" + str(lam) + ".gpkg", driver="GPKG")
     # print('### Exporting GPKG finished in {} seconds. ###'.format(time.time()-start))
     #
-    # export_raster(grid, 0.0833, ['production'], scenario, export_folder, lam)
+    # export_raster(grid, 0.0833, ['production'], optimisation_method, export_folder, lam)
     #
     # print('### Exporting rasters finished in {} seconds. ###'.format(time.time()-start))
     # logger.info("Exporting rasters finished")
@@ -922,7 +924,7 @@ def main(export_folder ='.', optimisation_method= 'weighted_sum', lam = 0.5, dem
                           "cost" : grid.total_cost.sum(),
                           "emissions": grid.total_emission.sum(),
                           "area": grid.suitable_area.sum(),
-                          "scenario": [demand_scenario],
+                          "optimisation_method": [demand_scenario],
                           "weight" : [str(lam)]})
     newdf.to_csv(export_folder + '/' + optimisation_method+ "_" + str(lam) + "_" + demand_scenario + ".csv", index=False)
     logger.info("Exporting GPKG finished")
@@ -938,8 +940,8 @@ def parallelise(export_folder, optimisation_method, job_nmr):
                       5: 'SSP2-NoCC2030', 6: 'SSP2-NoCC2050', 7: 'SSP3-NoCC2010', 8: 'SSP3-NoCC2030', 9: 'SSP3-NoCC2050'}
     demand_scenario = scenarios_dict[int(job_nmr)]
     for i in range(0, 110, 10):
-    # for i in ["weighted_sum"]:
         Process(target=main, args = (export_folder, optimisation_method, i/100., demand_scenario,)).start()
+    # Process(target=main, args = (export_folder, optimisation_method, 0., demand_scenario,)).start()
 
 if __name__ == '__main__':
     import argparse
