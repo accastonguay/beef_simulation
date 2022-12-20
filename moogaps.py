@@ -1,4 +1,4 @@
-#    Copyright (C) 2010 Adam Charette-Castonguay
+#    Copyright (C) 2022 Adam Charette-Castonguay
 #    the University of Queensland
 #
 #    This program is free software: you can redistribute it and/or modify
@@ -26,11 +26,14 @@ import logging
 from numpy import ones, vstack
 from numpy.linalg import lstsq
 import random
-
-pd.options.mode.chained_assignment = None
 import warnings
+from scipy import stats
+
+### Set options
+pd.options.mode.chained_assignment = None
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 warnings.simplefilter(action='ignore', category=UserWarning)
+
 ### Read csv tables
 regions = pd.read_csv("tables/glps_regions.csv")
 grass_energy = pd.read_csv("tables/grass_energy.csv")  # Load energy in grasses
@@ -39,7 +42,6 @@ nutrient_req_grass = pd.read_csv("tables/nutrient_req_grass.csv")  # Load nutrie
 beef_demand = pd.read_csv("tables/beef_demand.csv")  # Load country-level beef demand
 sea_distances = pd.read_csv("tables/sea_distances.csv")  # Load averaged distances between countries
 sea_t_costs = pd.read_csv("tables/sea_t_costs.csv")  # Load sea transport costs
-# energy_conversion = pd.read_csv("tables/energy_conversion.csv")  # Load energy conversion table
 fuel_cost = pd.read_csv("tables/fuel_costs.csv")  # fuel cost
 crop_area = pd.read_csv("tables/crop_area.csv")  # proportion of crop areas by country
 feed_energy = pd.read_csv("tables/feed_energy.csv")  # ME in different feeds
@@ -56,16 +58,13 @@ exp_access = pd.read_csv("tables/partner_access.csv")  # Access to market in imp
 fuel_partner = pd.read_csv("tables/fuel_partner.csv")  # Fuel cost in partner countries
 fertiliser_requirement = pd.read_csv("tables/fertiliser_requirement.csv")  # fertiliser requirement per crop production
 energy_efficiency = pd.read_csv("tables/energy_efficiency.csv")  # Energy efficiency
-# crop_residues= pd.read_csv("tables/crop_residues.csv")  # Residue to product ratio
 residue_energy= pd.read_csv("tables/residue_energy.csv")  # Energy in crop residues
 stover_frac = pd.read_csv("tables/stover_frac.csv")  # Fraction of stover feed for beef cattle vs all livestock
-# sc_change = pd.read_csv("tables/sc_change.csv")  # Fraction of stover feed for beef cattle vs all livestock
 beefprices = pd.read_csv("tables/beef_price.csv", usecols = ['ADM0_A3', 'price'])
 grain_stover_compo = pd.read_csv("tables/grain_stover_compo.csv")
 feed_composition = pd.read_csv("tables/PNAS_feed_composition.csv")
 beef_exports = pd.read_csv("tables/beef_exports.csv")
 beef_export_partners = pd.read_csv("tables/beef_export_partners.csv")
-
 aff_costs = pd.read_csv("tables/aff_costs.csv")
 crop_emissions = pd.read_csv("tables/crop_emissions.csv")
 dressing_table = pd.read_csv("tables/dressing_pct.csv")
@@ -98,10 +97,6 @@ GWP_N2O = 298
 new_colnames = {'production': '_meat',
                 'enteric': '_meth',
                 'manure': '_manure',
-                # 'export_emissions': '_exp_emiss',
-                # 'export_cost': '_exp_costs',
-                # 'transp_emission': '_trans_emiss',
-                # 'transp_cost': '_trans_cost',
                 'total_cost': '_tot_cost',
                 'total_emission': '_ghg',
                 'n2o_emissions': '_n2o',
@@ -109,11 +104,8 @@ new_colnames = {'production': '_meat',
                 'agb_change': '_agb_change',
                 'opportunity_cost': '_opp_cost',
                 'bgb_change': '_bgb_change',
-                # 'processing_energy': '_process_energy',
                 'postfarm_cost': '_postfarm_cost',
                 'postfarm_emi': '_postfarm_emi',
-
-                # 'compensation': '_compensation',
                 'beef_area': '_area',
                 'establish_cost': '_est_cost',
                 'biomass': '_BM'
@@ -298,8 +290,6 @@ def opportunity_cost_carbon(feats, sc_change, aff_scenario, logger, horizon, lam
     elif aff_scenario == 'regrowth':
 
         max_cstock = feats['regrowth_area'].values * feats['potential_carbon'].values * -1
-        # max_cstock = np.where(feats['ecoregions'].values  , max_cstock, 0)
-        # tempdf = pd.DataFrame()
         tempdf = feats[['ADM0_A3']].copy()
 
         aff_opp_cost = feats['opp_cost'].values.astype(float) * 1e-3 * feats['c_area'].values
@@ -322,7 +312,6 @@ def opportunity_cost_carbon(feats, sc_change, aff_scenario, logger, horizon, lam
             tempdf['opp_soc_'+ aff] = eac(tempdf['opp_soc_'+ aff], rate=0, type = 'ghg', lifespan=horizon)
 
             # Annualize opportunity cost of soil carbon
-
             t = float(horizon)
             subset_stemwood = stemwood_c_parameters.loc[stemwood_c_parameters.regrowth_type == aff]
             k = np.nan_to_num(feats[['ecoregions']].merge(subset_stemwood, how = 'left')['k'].values)
@@ -333,7 +322,6 @@ def opportunity_cost_carbon(feats, sc_change, aff_scenario, logger, horizon, lam
                 eac(tempdf['opp_aff_' + aff].values, rate=0, type = 'ghg', lifespan=horizon), 0)
 
             if aff == 'nat':
-                # tempdf['aff_cost_' + aff] = np.zeros_like(feats.ADM0_A3, dtype='int8')
                 tempdf['aff_cost_' + aff] = aff_opp_cost
 
             else:
@@ -354,12 +342,6 @@ def opportunity_cost_carbon(feats, sc_change, aff_scenario, logger, horizon, lam
 
         feats['best_regrowth'] = np.nanargmin(tempdf[['regrowth_score' + man for man in ['_noaff', '_nat', '_man']]].values, axis=1)
 
-        # logger.info('tempdf')
-        # logger.info(tempdf[['regrowth_score' + man for man in ['_noaff', '_nat', '_man']]])
-        #
-        # logger.info('best_regrowth')
-        # logger.info(feats[['best_regrowth']])
-
         for cname in ['opp_aff', 'aff_cost', 'opp_soc']:
             feats[cname] = np.take_along_axis(tempdf[[cname + man for man in ['_noaff', '_nat', '_man']]].values,
                                                          feats['best_regrowth'].values[:, None], axis=1).flatten()
@@ -378,25 +360,11 @@ def current_state(grid, grain_compo, domestic_feed, producer_prices, fertiliser_
     logger.info("subset_country: {}".format(subset_country))
 
     percdict = {1: 90,
-                # 2:92.5,
                 2:95,
-                # 4:99,
                 3:100}
-    # perc = percdict[perc_scn]
 
-    ### Convert kg/km2 to kg
-
-    # grid['feed'] = grid['feed'] * 0.01 * grid['cell_area'] * 1e-3
-    for f in ['c_grain', 'c_graz', 'c_stover', 'c_occa']:
-        grid[f] = grid[f] * 0.01 * grid['cell_area'] * 1e-3
-
-    grid['total_nitrogen'] = grid['total_nitrogen'].values * 0.01 * grid['cell_area'].values * 1e-3
-    grid['c_meat'] = grid['c_meat'].values * 0.01 * grid['cell_area'].values * 1e-3
-    grid['c_meth'] = grid['c_meth'].values * 0.01 * grid['cell_area'].values* 1e-3
-    grid['c_manure'] = grid['c_manure'].values * 0.01 * grid['cell_area'].values* 1e-3
-
-    # logger.info('total_nitrogen 2')
-    # logger.info('min: {}, max: {}'.format(grid['total_nitrogen'].min(), grid['total_nitrogen'].max()))
+    for f in ['c_grain', 'c_graz', 'c_stover', 'c_occa', 'total_nitrogen', 'c_meat', 'c_meth', 'c_manure']:
+        grid[f] = grid[f].values  * 0.01 * grid['cell_area'].values  * 1e-3
 
     country_beef = grid.groupby('ADM0_A3', as_index=False)[['c_meat', 'c_meth', 'c_manure']].sum()
     beef_increase2 = country_beef.merge(beef_production, how='left')
@@ -422,12 +390,6 @@ def current_state(grid, grain_compo, domestic_feed, producer_prices, fertiliser_
     for d in ['total_nitrogen', 'c_grain', 'c_graz', 'c_stover', 'c_occa']:
         grid[d] = grid[d].values * beef_increase
 
-    ### Calculate feed composition (tons)
-
-    # for i in ['grass', 'grain', 'stover', 'occasional']:
-    #     grid['c_' + i] = grid['feed'] * grid[['region', 'glps']].merge(feed_composition, how = 'left', left_on= ["region", "glps"],
-    #                                         right_on = ["region", "glps"])[i].values/100.
-
     ### n2o (ton CO2) = N (ton) x N2O factor (%) * GWP_N2O
     curr_grass_n2o = np.nan_to_num(grid['total_nitrogen'] * grass_n2o_factor * GWP_N2O)
 
@@ -439,26 +401,6 @@ def current_state(grid, grain_compo, domestic_feed, producer_prices, fertiliser_
     transport_wage_mkt = (grid['c_meat'].values / 15.) * 2 * (grid["accessibility"].values / 60.) * grid[['ADM0_A3']].merge(wages, how = 'left')['wage'].values
     transport_wage_prt = (grid['c_meat'].values / 15.) * 2 * (grid["distance_port"].values / 60.) * grid[['ADM0_A3']].merge(wages, how = 'left')['wage'].values
 
-    # For each feed
-    # for f in foddercrop_list:
-    #     grain_qty = grid[['ADM0_A3']].merge(grain_compo[['ADM0_A3', f]], how = 'left')[f].values * grid['grain'].values
-    #     prop_dom = grid[['ADM0_A3']].merge(domestic_feed.loc[domestic_feed.feed == f],
-    #                                                            how='left')['proportion_domestic'].values
-    #     domestic_price = grid[['ADM0_A3']].merge(producer_prices.loc[producer_prices.feed == f], how='left')['Value'].values
-    #
-    #     # trade_matrix = grid[['ADM0_A3']].merge(feeds.loc[feeds.feed == f].drop('feed', axis=1), how='left').drop('ADM0_A3',
-    #     #                                                                                                     axis=1).values
-    #     #
-    #     # feed_prices = grid[['ADM0_A3']].merge(prices.loc[prices.feed == f].drop('feed', axis=1), how='left').drop('ADM0_A3',
-    #     #                                                                                                       axis=1).values
-    #
-    #     curr_grain_cost += np.nan_to_num((grain_qty * prop_dom * domestic_price)
-    #                                      # + np.nansum(grain_qty[:, None] * trade_matrix * feed_prices,axis=1)
-    #                                      )
-    #
-    #     # Quantity of feed traded (tons)
-    #     allqtysum += grain_qty * (1 - prop_dom)
-
     # Grain production (ton) = grain (ton) * grain porportions (%)
     grain_prod = grid['c_grain'].values[:, None] * grid[['ADM0_A3']].merge(grain_compo, how = 'left').drop('ADM0_A3', axis = 1).values
 
@@ -467,8 +409,6 @@ def current_state(grid, grain_compo, domestic_feed, producer_prices, fertiliser_
 
     # Domestic grain prices
     domestic_price = grid[['ADM0_A3']].merge(producer_prices, how='left').drop(['ADM0_A3','group', 'region'], axis = 1).values
-
-    # grid['curr_grain_cost'] = np.nansum(grain_prod * prop_dom * domestic_price, axis = 1)
 
     # Cost of producing grain ('000 USD) = grain production (ton) * domestic prices ('000 USD/ton)
     curr_grain_cost = np.nan_to_num(np.nansum(grain_prod * domestic_price, axis = 1))
@@ -488,8 +428,7 @@ def current_state(grid, grain_compo, domestic_feed, producer_prices, fertiliser_
 
     ntrips_port = qty_feed_imp / 15. * 2
     ntrips_port = np.where(ntrips_port < 0, 0, ntrips_port)
-    # Calculate transport cost to bring imported feed from nearest port ($)
-    # trans_feed_cost.append(ntrips_port * grid["distance_port"] * grid['Diesel'] * fuel_efficiency)
+
 
     # 1. Get proportion of beef exported
     # 2. Meat * prop domestic -> ntrip -> local emissions, local costs
@@ -565,39 +504,10 @@ def current_state(grid, grain_compo, domestic_feed, producer_prices, fertiliser_
     grid = grid.drop(['grazed_biomass', 'harvested_biomass', 'grazed_area', 'harvested_area'], axis = 1)
 
     # Calculate local opp_cost
-    # grid['grain_opp_cost'] = 0
-    # grid['dom_grain_opp'] = 0
     imp_grain_opp = np.zeros_like(grid['current_grazing'].values, dtype = 'int8')
-    # grid['dom_cropping_area'] = 0
     imp_cropping_area = np.zeros_like(grid['current_grazing'].values, dtype = 'int8')
 
-    # for f in partner_feed_yields.feeds.unique():
-    #     print("start " + f)
-    #     domyields = grid[['ADM0_A3']].merge(feed_yields[["ADM0_A3", f]], how='left')[f].values
-    #     domyields[domyields == 0] = np.nan
-    #
-    #     # Calculate cropping area (ha) = grain production (t) / grain yield (t/ha)
-    #     grid['dom_cropping_area'] = grid['dom_cropping_area'].fillna(0) + grid[f].values / 1000. * \
-    #                             grid[['ADM0_A3']].merge(domestic_feed.loc[domestic_feed.feed == f], how='left')[
-    #                                 'proportion_domestic'].values / domyields
-    #
-    #     feedprod = grid[f].values / 1000.
-    #     proptraded = (1 - grid[['ADM0_A3']].merge(domestic_feed.loc[domestic_feed.feed == f], how='left')[
-    #         'proportion_domestic'].values)
-    #     feedtraded = feedprod * proptraded
-    #     feedtradedpartners = feedtraded[:, None] * grid[['ADM0_A3']].merge(
-    #         feeds.loc[feeds.feed == f].drop('feed', axis=1), how='left').drop('ADM0_A3', axis=1).values
-    #
-    #     yields = partner_feed_yields.loc[partner_feed_yields.feeds == f].drop('feeds', axis=1).iloc[0].values[None, :]
-    #     yields[yields == 0] = np.nan
-    #     areatradedp = feedtradedpartners / yields
-    #
-    #     opp = areatradedp * opp_cost_range.iloc[opp_cost_range.index == 'opp_cost_median'].values
-    #
-    #     grid['imp_cropping_area'] = grid['imp_cropping_area'].fillna(0) + np.nansum(areatradedp, axis = 1)
-    #     grid['imp_grain_opp'] = grid['imp_grain_opp'].values + np.nansum(opp, axis=1)
-
-    # grain area (ha) = grain production (t)/yields (t/ha)
+   # grain area (ha) = grain production (t)/yields (t/ha)
     if feed_area == 2:
         dom_cropping_area = np.nansum(grain_prod / np.ma.masked_values(grid[[f+'current' for f in foddercrop_list]].values, 0), axis = 1)
     else:
@@ -605,49 +515,17 @@ def current_state(grid, grain_compo, domestic_feed, producer_prices, fertiliser_
         dom_cropping_area = np.nansum(grain_prod / grid[foddercrop_list].values * grid[['ADM0_A3']].merge(
                                     fodder_yield_fraction, how="left").drop('ADM0_A3', axis=1).values, axis=1)
 
-    # logger.info("min dom_cropping_area: {}".format(np.min(dom_cropping_area)))
-    # logger.info("max dom_cropping_area: {}".format(np.max(dom_cropping_area)))
-    #
-    # grid['dom_cropping_area'] = dom_cropping_area
-    # logger.info("rows with inf {}".format(grid.loc[grid.dom_cropping_area == np.inf][['dom_cropping_area'] + [f+'current' for f in foddercrop_list]]))
-
-    # full_grain_prod = np.nansum(feats['available_area'].values[:, None] * \
-    #                             feats[['ADM0_A3']].merge(foddercrop_area, how="left").drop('ADM0_A3',
-    #                                                                                        axis=1).values *
-    #                             feats[foddercrop_list].values *
-    #                             feats[['ADM0_A3']].merge(
-    #                                 fodder_yield_fraction, how="left").drop('ADM0_A3', axis=1).values, axis=1)
-
     grid["pasture_opp_cost"] = np.nan_to_num(grid['opp_cost'].values * grid['current_grazing'].values)
     dom_grain_opp_cost =  np.nan_to_num(grid['opp_cost'].values * dom_cropping_area)
     grid['grain_opp_cost'] =  dom_grain_opp_cost + imp_grain_opp
-
-    # threshold = oppcost_thresholds.loc[oppcost_thresholds.percentile == perc, 'threshold'].iloc[0]
-    # grid["pasture_" + i + a] = np.where(grid["pasture_" + i + a]/grid['bvmeat'] > threshold,
-    #                                     threshold * grid['bvmeat'].values,
-    #                                     grid["pasture_" + i + a])
 
     logger.info("Finished calculating opportunity cost")
 
     # Check that cropping area is not greater than cell area
     grid['current_cropping'] = dom_cropping_area + imp_cropping_area
-
-    # for c in grid.columns:
-    #     try:
-    #         logger.info('{}: {}'.format(c, np.nanmin(grid[c])))
-    #     except:
-    #         logger.info("Couldn't print min of column {} because of datatype {}".format(c, grid[c].dtype))
     grid["c_opp_cost"] = np.nansum(grid[["pasture_opp_cost", 'grain_opp_cost']].values,
                                    axis = 1) * 1e-3
 
-    # cost_meat = np.nan_to_num(grid["c_opp_cost"].values[grid["c_meat"].values>0])/grid["c_meat"].values[grid["c_meat"].values>0]
-    # threshold = np.percentile(cost_meat, perc)
-    # logger.info("Perc: {}, Threshold: {}".format(perc, threshold))
-
-    # grid["c_opp_cost"] = np.where(grid["c_opp_cost"].values/grid["c_meat"].values > threshold,
-    #                               threshold * grid["c_meat"].values,
-    #                               grid["c_opp_cost"].values)
-    from scipy import stats
     threshold = 6
 
     perc = stats.percentileofscore(grid["c_opp_cost"].values[grid["c_meat"].values>0]/grid["c_meat"].values[grid["c_meat"].values>0], threshold)
@@ -657,17 +535,8 @@ def current_state(grid, grain_compo, domestic_feed, producer_prices, fertiliser_
                                   threshold * grid["c_meat"].values,
                                   grid["c_opp_cost"].values)
 
-    # logger.info("Max opp per meat {}".format(np.nanmax(grid["c_opp_cost"].values/grid["c_meat"].values)))
-
     export_costs = meat_export_cost + meat_exp_sea_cost
     export_emissions = meat_exp_emissions + meat_exp_sea_emissions
-
-    # grid['export_costs'] = export_costs
-    # grid['loc_trans_cost'] = loc_trans_cost
-
-    # grid['grass_cost'] = grass_cost
-    # grid['trans_feed_cost'] = trans_feed_cost
-    # grid['curr_grain_cost'] = curr_grain_cost
 
     grid['c_postfarm_cost'] = export_costs + loc_trans_cost
     grid['c_cost'] = curr_grain_cost + trans_feed_cost + grass_cost
@@ -682,7 +551,6 @@ def current_state(grid, grain_compo, domestic_feed, producer_prices, fertiliser_
 
     grid['c_area'] = np.nansum(grid[['current_grazing', 'current_cropping']].values, axis = 1)
 
-    # grid.rename(columns={'feed': 'c_BM'}, inplace=True)
     grid['c_BM'] = np.nansum(grid[['c_graz', 'c_grain', 'c_stover', 'c_occa']].values, axis = 1)
 
     newdf = pd.DataFrame({"total_emissions": grid.c_ghg.sum(),
@@ -703,8 +571,6 @@ def current_state(grid, grain_compo, domestic_feed, producer_prices, fertiliser_
                           "process_emissions": np.nansum(process_emissions),
                           "curr_grass_n2o": np.nansum(curr_grass_n2o),
                           "curr_grain_n2o": np.nansum(curr_grain_n2o),
-                          # 'imp_grain_opp': grid.imp_grain_opp.sum(),
-                          # 'dom_grain_opp_cost': grid.dom_grain_opp_cost.sum(),
                           'grain_opp_cost': grid.grain_opp_cost.sum(),
                           'pasture_opp_cost': grid.pasture_opp_cost.sum(),
                           "c_meth": grid.c_meth.sum(),
@@ -717,8 +583,6 @@ def current_state(grid, grain_compo, domestic_feed, producer_prices, fertiliser_
                           'c_area':grid.c_area.sum(),
                           'current_grazing': grid.current_grazing.sum(),
                           'current_cropping': grid.current_cropping.sum(),
-                          # 'dom_cropping_area': grid.dom_cropping_area.sum(),
-                          # 'imp_cropping_area': grid.imp_cropping_area.sum(),
                           'c_graz': grid.c_graz.sum(),
                           'c_grain': grid.c_grain.sum(),
                           'c_stover': grid.c_stover.sum(),
@@ -786,7 +650,6 @@ def findcprice(emissions, costs):
     emi_weight = m * y + c
 
     ### Current emissions
-
     y = costs
 
     x1 = data.weight[data.total_costs > y].values[-1]
@@ -808,11 +671,6 @@ def findcprice(emissions, costs):
 def calc_establishment_cost(feats, area_col, horizon, cost):
 
     # Area that requires transition (ha)
-    # transition_area = np.where(
-    #     area_col < (feats['current_grazing'].fillna(0).values + feats['current_cropping'].fillna(0).values),
-    #     0,
-    #     area_col - (feats['current_grazing'].fillna(0).values + feats['current_cropping'].fillna(0).values))
-
     transition_area = np.where(feats.newarea == 1, area_col, 0)
 
     # Fraction of suitable area that is not grass or cropland (%)
@@ -852,20 +710,15 @@ def create_grid(foddercrop_list, profit_margin_sampling, pnas_inputs, simulation
 
     for r in rasters:
         name = r.split('/')[-1].split('.')[0]
-        # if name != 'accessibility':
         with rasterio.open(r) as f:
             meta = f.meta
-            # if meta['dtype'] == 'float64' and name not in ['c_ghg_95', 'c_tot_cost_95', 'c_meat_95']:
-            #     dt = 'float32'
+
             if name in ['ecoregions', 'climate']:
                 dt = 'int8'
             else:
                 dt = 'float64'
-                # dt = meta['dtype']
-
             grid[name] = f.read(1).flatten()
-            # if name in ['c_ghg', 'c_tot_cost', 'c_meat']:
-            #     grid[name] = np.where(grid[name] == 0, np.nan, grid[name])
+
     if feed_area == 2:
         feed_area_rasters = glob('./rasters/current_yield/*.tif')
         for r in feed_area_rasters:
@@ -874,8 +727,6 @@ def create_grid(foddercrop_list, profit_margin_sampling, pnas_inputs, simulation
                 grid[name] = f.read(1).flatten()
 
     grid['potential_carbon'] = np.where(grid['potential_carbon'].values < 0, 0, grid['potential_carbon'].values)
-
-    # grid['potential_carbon'] = [random.uniform(x,y) for x,y in zip(grid.potential_carbon.values,grid.potential_carbon_west.values)]
 
     dict_suitable = {1:'suitable_',
                      2: 'suitable_protected',
@@ -911,7 +762,6 @@ def create_grid(foddercrop_list, profit_margin_sampling, pnas_inputs, simulation
     grid['ADM0_A3'] = grid[['id']].merge(world[['id', 'ADM0_A3']], how='left')['ADM0_A3'].values
 
     grid = grid.loc[grid.id > -1]
-    # grid = grid.loc[grid.ADM0_A3.isin(['BEL', 'NLD', 'LUX'])]
 
     grid = grid.merge(regions, how='left')
 
@@ -933,10 +783,6 @@ def create_grid(foddercrop_list, profit_margin_sampling, pnas_inputs, simulation
     print('redis_feed_GLW2_country' in grid.columns)
 
     grid.rename(columns={
-        # "redis_beef_GLW2_country": "c_meat",
-        # 'redis_manure_GLW2_country': 'c_manure',
-        # "redis_methane_GLW2_country": "c_meth",
-        # 'redis_feed_GLW2_country': 'feed',
         'nitrogen': 'total_nitrogen',
                          }, inplace=True)
     
@@ -950,7 +796,6 @@ def create_grid(foddercrop_list, profit_margin_sampling, pnas_inputs, simulation
     else:
         crop_value = np.where(grid['opp_uminn'].values < 0, 0, grid['opp_uminn'].values)
 
-    # if rumi == 2:
     grid['ruminant_value'] = grid['ruminnats_redistributed'].values
 
     grid['opp_cost'] = np.maximum(np.nan_to_num(crop_value), np.nan_to_num(grid['ruminant_value'].values)/100.) * profit_margin
@@ -958,19 +803,11 @@ def create_grid(foddercrop_list, profit_margin_sampling, pnas_inputs, simulation
     del profit_margin, crop_value
     grid["nutrient_availability"] = grid['nutrient_availability'].replace(0, 2)
 
-    # Get net cropping area to 'protect'
-    # grid['net_fodder_area'] = np.where(grid['sum_area'] - grid['current_cropping'] < 0,
-    #                                    0, grid['sum_area'] - grid['current_cropping'])
-
     ### Only keep cells where there is feed ###
     feeds = [c for c in grid.columns if 'grass' in c or c in foddercrop_list]
 
     # Remove cells that have no potential feed and no space, or no current beef
-    # grid = grid.loc[((grid[feeds].sum(axis=1) > 0) &
-    #                 (grid['suitable'].values * grid['cell_area'].values - grid['net_fodder_area'].values > 0)) |
-    #                 (grid['c_meat'].values > 0)]
     grid = grid.loc[(grid[feeds].sum(axis=1) > 0) |  (grid['c_meat'].values > 0)]
-    # print('----> Beef in EGY 5: {}'.format(np.nansum(grid.loc[grid.ADM0_A3 == 'EGY', 'c_meat'])))
 
     dropcols = ['other_rum', 'agri_opp2', 'field_size', 'opp_uminn', 'opp_ifpri',
                 'iiasa_ag_opp','potential_carbon_west','beef_gs']
@@ -1010,25 +847,6 @@ def weighted_score(feats, l, lam, horizon, logger, transport_wage_mkt, dressing)
     Output: returns the annualised cost as a float
     """
 
-    # Annualise establishment cost, same for pasture or crops, adjusted by the ratio of area used:cell area
-
-    # Percentage of area that needs transition * area other than current crop and current grass * 8 ('000$) adjusted based on suitable ratio
-
-    # transition_area = np.where(
-    #     feats[l + '_area'] < (feats['current_grazing'].fillna(0).values + feats['current_cropping'].fillna(0).values),
-    #     0,
-    #     feats[l + '_area'] - (feats['current_grazing'].fillna(0).values + feats['current_cropping'].fillna(0).values))
-    #
-    # transition_fraction = ((feats['suitable'] - (feats['crop'] + feats['grass']))/feats['suitable'])
-    # transition_fraction[transition_fraction < 0] = 0
-    # feats[l + '_est_cost'] = eac(transition_fraction * transition_area * 8, lifespan=horizon)
-
-    ### Infrastructure cost
-
-    # Calculate current heads in feedlots (assuming that if there is grain in diet on the cell, beef is produced in a feedlot)
-
-    logger.info('land use: {}'.format(l))
-
     if l in ['grass_grain', 'stover_grain']:
 
         LW_head = feats[['region']].merge(herd_param, how='left')['liveweight'].values
@@ -1060,8 +878,6 @@ def weighted_score(feats, l, lam, horizon, logger, transport_wage_mkt, dressing)
         logger.info(temp.loc[temp.new_heads > 0 ])
         del temp
 
-    # feats['transition_fraction'] = transition_fraction
-
     LW_diff = (feats[l + '_meat'] -  feats['c_meat']) * 1e3
     LW_diff[LW_diff < 0] = 0
     animals = np.ceil(LW_diff / dressing / feats[['region']].merge(animal_weights, how='left')['adult'].values)
@@ -1087,18 +903,6 @@ def weighted_score(feats, l, lam, horizon, logger, transport_wage_mkt, dressing)
     # Calculate opportunity cot in '000 USD: ag value (USD/ha) x area used (ha)
     feats[l + '_opp_cost'] =  feats['opp_cost'].astype(float) / 1000. * feats[l + '_area']
 
-    # Calculate current production: cell area (ha) x meat (kg/km2) x kg/km2-t/ha conversion
-    # current_production = feats['cell_area'].values * feats['bvmeat'].values * 1e-5
-    # Get price of beef in '000 USD
-    # beef_price = feats[['ADM0_A3']].merge(beefprices, how='left')['price'].values / 1000.
-    # Compensation for loss of revenues from beef ('000 USD) = max(0, beef prices ('000 USD) x (current production - new production))
-    # feats[l + '_compensation'] = np.maximum(0, beef_price * (current_production - feats[l + '_meat'].values))
-    # del beef_price, current_production
-
-    # Estimate cost of importing animals
-
-    # Emissions for processing and packaging energy = meat (t) * process energy (MJ/kg) * energy efficiency (kg CO2/kg)
-
     # Total costs ('000 USD) = Establishment cost (annualised '000 USD) + production cost + transport cost + opportunity cost + cost of afforestation
     cost_cols = ['_est_cost', '_cost', '_opp_cost', '_postfarm_cost']
     feats[l + '_tot_cost'] = np.nansum(
@@ -1108,12 +912,9 @@ def weighted_score(feats, l, lam, horizon, logger, transport_wage_mkt, dressing)
     # Annualise the loss of carbon stock
     feats[l + '_agb_change'] = eac(feats[l + '_cstock'], rate=0, type = 'ghg', lifespan=horizon)
 
-    # feats[l + '_exp_costs'] + feats[l + '_trans_cost']+ feats[l + '_compensation'])
-
     # Update annual emissions (t CO2 eq)
     emissions_cols = ['_n2o', '_meth', '_manure', '_postfarm_emi', '_agb_change', '_bgb_change']
 
-    # feats[l + '_trans_emiss'] + feats[l + '_exp_emiss'] + feats[l + '_process_energy']
     feats[l + '_ghg'] = np.nansum(
         feats[[l + c for c in emissions_cols]].values, axis=1, dtype='float64') - np.nansum(
         feats[['opp_aff', 'opp_soc']].values, axis=1, dtype='float64')
@@ -1129,7 +930,6 @@ def weighted_score(feats, l, lam, horizon, logger, transport_wage_mkt, dressing)
     feats[l + '_score'] = np.where(feats['suitable'].values > 0,
                                    (rel_ghg * (1 - lam)) + (rel_cost * lam),
                                    np.nan)
-    # logger.info("Done calculating rel cost & emissions for  {}".format(l))
     return feats
 
 def scoring(feats, foddercrop_list, feedprices, fertiliser_prices, energy_conversion, sc_change_opp, sc_change_exp,
@@ -1164,9 +964,6 @@ def scoring(feats, foddercrop_list, feedprices, fertiliser_prices, energy_conver
 
     # logger.info('Grid shape after available_area: {}, current meat {}'.format(feats.shape[0], feats.c_meat.sum()))
     feats = feats.loc[(feats['available_area'] > 0) | (feats['c_meat'] > 0)]
-    # logger.info('Grid shape after available_area: {}, current meat {}'.format(feats.shape[0], feats.c_meat.sum()))
-    # logger.info('Grid shape after available_area: {}, current meat {}'.format(feats.shape[0], feats.c_meat.sum()))
-
     logger.info('min available area {}'.format(np.nanmin(feats.loc[feats.newarea == 1, 'available_area']) ))
 
     feats.loc[(feats.newarea == 1) &
@@ -1188,7 +985,6 @@ def scoring(feats, foddercrop_list, feedprices, fertiliser_prices, energy_conver
             feats[l + '_est_cost'] = calc_establishment_cost(feats, feats[l + '_area'].values, horizon, past_est_cost)
 
             # Calculate biomass consumed (ton) = (grazed biomass (t/ha) * area (ha))
-            # biomass_consumed = feats[l].values * feats['suitable'].values
             feats[l + '_BM'] = feats[l].values * feats[l + '_area']
 
             # Subset energy conversion table to keep grazing systems and ME to meat conversion column.
@@ -1303,14 +1099,12 @@ def scoring(feats, foddercrop_list, feedprices, fertiliser_prices, energy_conver
 
         for l in ['grass_grain']:
             # Keep 9 main fodder crops
-            # fodder_potential_yields = potential_yields[['climate_bin'] + [c for c in foddercrop_list]]
             fodder_yield_fraction = yield_fraction[['ADM0_A3'] + foddercrop_list]
             # Potential production if all available area is converted to grain
             full_grain_prod = np.nansum(feats['available_area'].values[:, None] * \
                                         feats[['ADM0_A3']].merge(foddercrop_area, how="left").drop('ADM0_A3',
                                                                                                    axis=1).values *
                                         feats[foddercrop_list].values *
-                                        # feats[['climate_bin']].merge(fodder_potential_yields, how="left").drop('climate_bin', axis=1).values *
                                         feats[['ADM0_A3']].merge(
                                             fodder_yield_fraction, how="left").drop('ADM0_A3', axis=1).values, axis=1)
 
@@ -1331,7 +1125,6 @@ def scoring(feats, foddercrop_list, feedprices, fertiliser_prices, energy_conver
 
 
             # Set grass production = grazing proportion area * available area * grazing (t/ha)
-            # grazing_production = grazing_prop_area * feats['available_area'].values * feats['grass_0500_N000'].values
             grazing_production = grazing_prop_area * feats['available_area'].values * grasscol
 
             # Total_production = grain + grazing
@@ -1341,22 +1134,12 @@ def scoring(feats, foddercrop_list, feedprices, fertiliser_prices, energy_conver
             grain_qty_prop = grain_production / total_production
             print(grain_qty_prop[grain_qty_prop > grain_max].shape[0])
 
-            # logger.info(feats[['grass_0500_N000', 'available_area']])
             logger.info('Start grain area adjustment')
             pd.set_option('display.max_columns', 8)
 
             shape = grain_qty_prop[grain_qty_prop > grain_max].shape[0]
 
             while shape > 0:
-                # df = pd.DataFrame({'Crop_area_frac': cropping_prop_area,
-                #                    'Grass_area_frac': grazing_prop_area,
-                #                    'grain_qty': grain_production,
-                #                    'grass_qty': grazing_production,
-                #                    'total': grain_production + grazing_production,
-                #                    'grain_bm_prop': grain_qty_prop,
-                #                    'grass_bm_prop': 1 - grain_qty_prop})
-                # logger.info(df)
-                # print(df)
                 # If grain BM > 80% of total BM, Cropping frac  = Cropping frac - 0.1, else Cropping frac
                 cropping_prop_area = np.where(grain_qty_prop > grain_max, cropping_prop_area - 0.01, cropping_prop_area)
                 cropping_prop_area = np.where(cropping_prop_area < 0, 0, cropping_prop_area)
@@ -1368,16 +1151,6 @@ def scoring(feats, foddercrop_list, feedprices, fertiliser_prices, energy_conver
                 grazing_production = grazing_prop_area * feats['available_area'].values * grasscol
                 grain_qty_prop = grain_production / (grain_production + grazing_production)
                 shape = grain_qty_prop[grain_qty_prop > grain_max].shape[0]
-                # logger.info('Number of cells with grain BM fraction exceeding 80% to toal BM: {}'.format(shape))
-
-                # df = pd.DataFrame({'Crop_area_frac': cropping_prop_area,
-                #                    'Grass_area_frac': grazing_prop_area,
-                #                    'grain_qty': grain_production,
-                #                    'grass_qty': grazing_production,
-                #                    'total': grain_production + grazing_production,
-                #                    'grain_bm_prop': grain_qty_prop,
-                #                    'grass_bm_prop': 1 - grain_qty_prop})
-                # logger.info(df)
 
             logger.info('End grain area adjustment')
 
@@ -1393,9 +1166,6 @@ def scoring(feats, foddercrop_list, feedprices, fertiliser_prices, energy_conver
                 'ADM0_A3', axis=1).values * feats[foddercrop_list].values * \
                          feats[['ADM0_A3']].merge(fodder_yield_fraction, how="left").drop(
                              'ADM0_A3', axis=1).values
-
-            #          feats[['climate_bin']].merge(fodder_potential_yields, how="left").drop(
-            # 'climate_bin', axis=1).values * \
 
             feats['grain_grainBM'] = np.nansum(grain_prod, axis=1)
             feats[l + '_BM'] = feats['grain_grainBM'] + feats['grain_grassBM']
@@ -1478,8 +1248,6 @@ def scoring(feats, foddercrop_list, feedprices, fertiliser_prices, energy_conver
                         foddercrop_area[['ADM0_A3', f + '_area']], how="left")[f + '_area'].values * feats[f].values *
                                      feats[['ADM0_A3']].merge(yield_fraction, how="left")[f].values)) * \
                                    feats[['ADM0_A3']].merge(percent_exported[['ADM0_A3', f]], how="left")[f].values
-                    # feats[['climate_bin']].merge(potential_yields[['climate_bin', f]],
-                    #                              how="left")[f].values * \
 
                 if feed_option == "v2":
                     # Qty exported (t) = (Suitable area (ha) * crop area fraction * crop yield (t/ha) * yield gap (%)) - production for other uses (t) * export fraction
@@ -1487,7 +1255,6 @@ def scoring(feats, foddercrop_list, feedprices, fertiliser_prices, energy_conver
                                      feats[['ADM0_A3']].merge(foddercrop_area[['ADM0_A3', f + '_area']], how="left")[
                                          f + '_area'].values * feats[f].values *
                                      feats[['ADM0_A3']].merge(yield_fraction, how="left")[f].values)
-                                       # - feats['diff_' + f].values
                                        ) * feats[['ADM0_A3']].merge(percent_exported[['ADM0_A3', f]],
                                                                     how="left")[f].values
 
@@ -1671,16 +1438,11 @@ def scoring(feats, foddercrop_list, feedprices, fertiliser_prices, energy_conver
 
             # Adjust stover production based on what is needed
             # If potential is greater than maximum, adjust stover production by a ratio of max/potential
-            # stov_adjustment = np.where(np.nansum(potential_stover, axis = 1) > stover_max, stover_max/np.nansum(potential_stover, axis = 1), 1.)
             stov_adjustment = np.where(potential_stover > stover_max, stover_max / potential_stover, 1.)
-
-            # stover_production = potential_stover * stov_adjustment[:,None]
 
             stover_production = potential_stover * stov_adjustment
 
             # Stover energy ('000 MJ) = sum across rows of Stover production (t) * stover energy (MJ/kg dm)
-
-            # feats['stover_grass_stoverBM'] = np.nansum(stover_production, axis=1)
             feats['stover_grass_stoverBM'] = stover_production
 
             feats[l + '_BM'] = feats['stover_grass_stoverBM'] + feats['stover_grass_grassBM']
@@ -1761,7 +1523,7 @@ def scoring(feats, foddercrop_list, feedprices, fertiliser_prices, energy_conver
             # fodder_potential_yields = potential_yields[['climate_bin'] + [c for c in foddercrop_list]]
             fodder_yield_fraction = yield_fraction[['ADM0_A3'] + foddercrop_list]
 
-            #### Local feed consumption ####
+            #### Local feed consumption
             grain_production = feats['available_area'].values[:, None] * \
                                feats[['ADM0_A3']].merge(foddercrop_area, how="left").drop('ADM0_A3', axis=1).values * \
                                feats[foddercrop_list].values * \
@@ -1778,7 +1540,6 @@ def scoring(feats, foddercrop_list, feedprices, fertiliser_prices, energy_conver
 
             # Adjust stover production based on what is needed
             # If potential is greater than maximum, adjust stover production by a ratio of max/potential
-            # stov_adjustment = np.where(np.nansum(potential_stover, axis = 1) > stover_max, stover_max/np.nansum(potential_stover, axis = 1), 1.)
             stov_adjustment = np.where(potential_stover > stover_max, stover_max / potential_stover, 1.)
 
             stover_fraction = feats[['region']].merge(grain_stover_compo[['region', 'stover']], how='left')['stover'].values
@@ -1786,13 +1547,9 @@ def scoring(feats, foddercrop_list, feedprices, fertiliser_prices, energy_conver
 
             # Adjust stover production based on what is needed
             # If potential is greater than maximum, adjust stover production by a ratio of max/potential
-            # stov_adjustment = np.where(np.nansum(potential_stover, axis = 1) > stover_max, stover_max/np.nansum(potential_stover, axis = 1), 1.)
             stov_adjustment = np.where(potential_stover > stover_max, stover_max / potential_stover, 1.)
 
-            # stover_production = potential_stover * stov_adjustment[:,None]
-
             stover_production = potential_stover * stov_adjustment
-            # feats['stover_grain_stoverBM'] = np.nansum(stover_production, axis = 1)
 
             grain_max = stover_production * (grain_max / (1 - grain_max))
 
@@ -1806,22 +1563,18 @@ def scoring(feats, foddercrop_list, feedprices, fertiliser_prices, energy_conver
             feats[l + '_area'] = feats['available_area'].values
             feats[l + '_est_cost'] = calc_establishment_cost(feats, feats[l + '_area'].values, horizon, crop_est_cost)
 
-            # Biomass consumed for domestic production (t) = actual production (t) x (1 - fraction exported feed)
-            # biomass_dom = total_prod * grain_perc * (
-            #         1 - feats[['ADM0_A3']].merge(percent_exported, how="left").drop('ADM0_A3', axis=1).values)
-
-            # # Biomass consumed for domestic production (t) = actual production (t) x fraction exported feed
+            # # Biomass exported (t) = actual production (t) x fraction exported feed
             biomass_exported = grain_production * feats[['ADM0_A3']].merge(
                 percent_exported[['ADM0_A3'] + foddercrop_list],
                 how="left").drop('ADM0_A3', axis=1).values
+
+            # Biomass produced for domestic consumption (t) = actual production (t) x (1 - fraction exported feed)
             biomass_dom = grain_production * (
                         1 - feats[['ADM0_A3']].merge(percent_exported[['ADM0_A3'] + foddercrop_list],
                                                      how="left").drop('ADM0_A3', axis=1).values)
             # Subset ME in conversion per region and climate
             subset_table = energy_conversion.loc[energy_conversion.feed == 'mixed'][['group', 'climate', beef_yield,
                                                                                      'curr_methane', 'curr_manure']]
-
-            # stover_energy = feats['stover_energy'].values * stov_adjustment
 
             # Meat production (t) = sum across feeds (Domestic biomass (t) x ME in feed (MJ/kd DM)) x ME to beef conversion ratio * dressing (%)
             stover_meat = feats['stover_energy'].values * stov_adjustment * fraction_total_stover * stover_removal * \
@@ -1831,10 +1584,7 @@ def scoring(feats, foddercrop_list, feedprices, fertiliser_prices, energy_conver
             local_grain_meat = np.nansum(biomass_dom * feed_energy[foddercrop_list].iloc[0].values[None, :], axis=1) * \
                                feats[['group', 'climate']].merge(subset_table, how='left', left_on=['group', 'climate'],
                                                               right_on=['group', 'climate'])[beef_yield].values * dressing
-            # meat = (np.nansum(biomass_dom * feed_energy[foddercrop_list].iloc[0].values[None, :], axis=1) + (
-            #     np.nansum(stover_production * residue_energy[foddercrop_list].iloc[0].values[None, :], axis=1))) * \
-            #        feats[['group', 'glps']].merge(subset_table, how='left', left_on=['group', 'glps'],
-            #                                       right_on=['group', 'glps'])[beef_yield].values * dressing
+
             local_grain_meat = np.where(local_grain_meat < 0, 0, local_grain_meat)
             stover_meat = np.where(stover_meat < 0, 0, stover_meat)
 
@@ -1843,7 +1593,6 @@ def scoring(feats, foddercrop_list, feedprices, fertiliser_prices, energy_conver
 
             local_meat = (feats.count_neg * monthly_beef - (feats.count_neg * monthly_beef * (
                     -0.0182 * feats.mean_neg - 0.0182))) + (monthly_beef * (12 - feats.count_neg))
-
 
             # Calculate methane produced from local beef production (ton) = biomass consumed (ton) x biomass-methane conversion (ton/ton)
             local_methane = (np.nansum(grain_production, axis=1) + stover_production) * \
@@ -1856,8 +1605,6 @@ def scoring(feats, foddercrop_list, feedprices, fertiliser_prices, energy_conver
                                                           right_on=['group', 'climate'])['curr_manure'].values
 
             # Calculate nitrous N2O (ton) = Actual production (ton) x fertiliser requirement (kg) x crop_emission factors (% per thousand)
-            # feats[l + '_n2o'] = np.nansum(grain_production * fertiliser_requirement['fertiliser'].values[None, :] * (
-            #         crop_emissions_factors['factor'].values[None, :] / 100), axis=1)
 
             ymax = fertiliser_application.loc[fertiliser_application['crop'].isin(
                 foddercrop_list), 'max_yield'].values
@@ -1870,15 +1617,6 @@ def scoring(feats, foddercrop_list, feedprices, fertiliser_prices, energy_conver
                                                                                           'crop'].isin(
                                                                                           foddercrop_list), 'factor'].values[
                                                                                   None, :] / 100), axis=1)
-
-            # feats[l + '_n2o'] = np.nansum(grain_production * fertiliser_requirement.loc[fertiliser_requirement['crop'].isin(
-            #     foddercrop_list), 'fertiliser'].values[None, :] * (
-            #                                       crop_emissions_factors.loc[crop_emissions_factors['crop'].isin(
-            #                                           foddercrop_list), 'factor'].values[None, :] / 100.), axis=1)
-
-            # feats[l + '_n2o'] = np.nansum(feats[l + '_area'].values[:, None] * feats[['ADM0_A3']].merge(foddercrop_area, how="left").drop(
-            #     'ADM0_A3', axis=1).values * feats[['ADM0_A3']].merge(crop_emissions[['ADM0_A3'] + foddercrop_list], how="left").drop('ADM0_A3', axis=1).values,
-            #           axis = 1)
 
             logger.info("Done with local meat production")
 
@@ -1899,9 +1637,7 @@ def scoring(feats, foddercrop_list, feedprices, fertiliser_prices, energy_conver
                     # Qty exported (t) = Suitable area (ha) * crop area fraction * crop yield (t/ha) * yield gap (%) * export fraction
                     qty_exported = ((feats[l + '_area'].values * feats[['ADM0_A3']].merge(
                         foddercrop_area[['ADM0_A3', f + '_area']], how="left")[f + '_area'].values * \
-                                     # feats[['climate_bin']].merge(fodder_potential_yields[['climate_bin', f]],
-                                     #                              how="left")[f + '_potential'].values * \
-                                     feats[f].values * feats[['ADM0_A3']].merge(fodder_yield_fraction, how="left")[
+                                    feats[f].values * feats[['ADM0_A3']].merge(fodder_yield_fraction, how="left")[
                                          f].values)) * \
                                    feats[['ADM0_A3']].merge([['ADM0_A3', f]], how="left")[f].values * grain_adjustment
 
@@ -1912,9 +1648,6 @@ def scoring(feats, foddercrop_list, feedprices, fertiliser_prices, energy_conver
                                          f + '_area'].values * feats[f].values *
                                      feats[['ADM0_A3']].merge(fodder_yield_fraction, how="left")[f].values)
 
-                                       # feats[['climate_bin']].merge(fodder_potential_yields[['climate_bin', f]],
-                                       #                              how="left")[f].values * \
-                                       # - feats['diff_' + f].values
                                        ) * feats[['ADM0_A3']].merge(percent_exported[['ADM0_A3', f]], how="left")[
                                        f].values * grain_adjustment
 
@@ -2003,9 +1736,6 @@ def scoring(feats, foddercrop_list, feedprices, fertiliser_prices, energy_conver
             feed_to_port_emis = ntrips_feed_exp * feats[
                 'distance_port'] * speed * fuel_efficiency * truck_emission_factor / 1000.
 
-            # feats[l + '_trans_cost'] = beef_trans_cost + feed_to_port_cost + exp_costs + trancost_partner_ls
-            # feats[l + '_trans_emiss'] = beef_trans_emiss + feed_to_port_emis + sea_emissions_ls + emissions_partner_ls
-
             process_energy = feats[l + '_meat'].values * process_pack * \
                                         feats[['ADM0_A3']].merge(energy_efficiency, how='left')['energy'].fillna(
                                             0).values
@@ -2019,7 +1749,6 @@ def scoring(feats, foddercrop_list, feedprices, fertiliser_prices, energy_conver
 
             grass_to_grain = sc_change_exp.loc[sc_change_exp.new_cover == 'cropland', 'grassland'].iloc[0]
             tree_to_grain = sc_change_exp.loc[sc_change_exp.new_cover == 'cropland', 'tree'].iloc[0]
-
 
             weighted_area = feats['cell_area'].values
 
@@ -2044,17 +1773,6 @@ def scoring(feats, foddercrop_list, feedprices, fertiliser_prices, energy_conver
                                            np.nan, feats[l + '_score'].values)
     else:
         logger.info('Feed option {} not in choices'.format(feed_option))
-    # Drop monthly temperature and other crop uses columns
-
-    # Do not consider production lower than 1 ton
-    # feats[[l + '_meat' for l in landuses]] = np.where(feats[[l + '_meat' for l in landuses]] < 0.1, 0, feats[[l + '_meat' for l in landuses]])
-
-    # Only keep cells where at least 1 feed option produces meat
-    # logger.info('Grid shape before sum: {}, current meat {}'.format(feats.shape[0], feats.c_meat.sum()))
-    # feats = feats.loc[feats[[l + '_meat' for l in landuses]].sum(axis=1) > 0]
-    # logger.info('Grid shape after sum: {}, current meat {}'.format(feats.shape[0], feats.c_meat.sum()))
-
-    # Drop rows where no land use has a score (all NAs)
 
     feats['c_ghg'] = np.nan_to_num(feats.c_ghg) - np.nan_to_num(feats.opp_aff) - np.nan_to_num(feats.opp_soc)
     feats['c_tot_cost'] = np.nan_to_num(feats.c_tot_cost) - np.nan_to_num(feats.aff_cost)
@@ -2063,9 +1781,6 @@ def scoring(feats, foddercrop_list, feedprices, fertiliser_prices, energy_conver
     rel_c_cost = feats['c_tot_cost'].values / feats['c_meat'].values
 
     feats['c_score'] = np.where(feats.newarea == 0, (rel_c_ghg * (1 - lam)) + (rel_c_cost * lam), np.nan)
-    # feats['c_score'] = np.where(feats.newarea == 0,
-    #                             ((feats['c_ghg'].values / feats['c_meat'].values) * (1 - lam)) + ((feats['c_tot_cost'].values/feats['c_meat'].values) * lam),
-    #                             np.nan)
 
     logger.info('Grid shape before dropna: {}, current meat {}'.format(feats.shape[0], feats.c_meat.sum()))
 
@@ -2083,17 +1798,10 @@ def scoring(feats, foddercrop_list, feedprices, fertiliser_prices, energy_conver
         # If there is no best land use, export dataframe
         feats.loc[feats.best_score.isna()].drop('geometry', axis=1).to_csv("nadf.csv", index=False)
 
-    # del list_scores, allArrays
-
     # Create a new column for all variables in new_colnames that selects the value of the optimal land use
-    # for i in new_colnames:
-    #     feats[i] = np.take_along_axis(feats[[l + new_colnames[i] for l in landuses]].values,
-    #                                   feats['bestlu'].values[:, None], axis=1)
     for cname in ['production']:
         feats[cname] = np.take_along_axis(feats[[lu + new_colnames[cname] for lu in landuses]].values,
                                           feats['bestlu'].values[:, None], axis=1).flatten()
-    # print('-> Production for cell id {}: {}'.format(4394871, feats.loc[feats.cell_id == 4394871][['production']]))
-
     return feats
 
 def trade(feats, lam, landuses):
@@ -2107,8 +1815,6 @@ def trade(feats, lam, landuses):
 
     Output: returns a gridded dataframe with updated score
     """
-    # if feed_option == 'v3':
-    #     landuses = ['grazing', 'mixed']
     dressing = feats.merge(dressing_table, how='left', left_on='region', right_on='region')['dressing'].values
 
     transport_wage_prt = (feats["distance_port"].values / 60.) * feats[['ADM0_A3']].merge(wages, how='left')[
@@ -2149,12 +1855,8 @@ def trade(feats, lam, landuses):
             feats[l + '_tot_cost'] = np.nansum(
                 feats[[l + c for c in cost_cols]].values, axis = 1, dtype = 'float64') -  np.nan_to_num(feats.aff_cost)
 
-            # feats[l + '_exp_costs'] + feats[l + '_trans_cost']+ feats[l + '_compensation'])
-
             # Update annual emissions (t CO2 eq)
             emissions_cols = ['_n2o', '_meth', '_manure', '_postfarm_emi', '_agb_change', '_bgb_change']
-
-                   # feats[l + '_trans_emiss'] + feats[l + '_exp_emiss'] + feats[l + '_process_energy']
             feats[l + '_ghg'] = np.nansum(
                 feats[[l + c for c in emissions_cols]].values, axis = 1, dtype = 'float64') - np.nansum(
                 feats[['opp_aff', 'opp_soc']].values, axis = 1, dtype = 'float64')
@@ -2164,14 +1866,6 @@ def trade(feats, lam, landuses):
 
     # make sure that dataframe is not empty
     if feats.shape[0] > 0:
-
-        # rel_ghg = np.where(feats[l + '_meat'] < 1, np.NaN, feats[l + '_ghg'] / (feats[l + '_meat']))
-        # # Calculate relative Cost (GHG/meat)
-        # rel_cost = np.where(feats[l + '_meat'] < 1, np.NaN,
-        #                     feats[l + '_tot_cost'] / (feats[l + '_meat']))
-
-        # feats['c_score'] = ((feats['c_ghg'].values / feats['c_meat'].values) * (1 - lam)) + (
-        #         (feats['c_tot_cost'].values / feats['c_meat'].values) * lam)
 
         # Select lowest score
         feats['best_score'] = np.nanmin(feats[[l + '_score' for l in landuses]].values, axis=1)
@@ -2183,12 +1877,8 @@ def trade(feats, lam, landuses):
             # If there is no best land use, export dataframe
             feats.loc[feats.best_score.isna()].drop('geometry', axis=1).to_csv("nadf.csv", index=False)
 
-        # del list_scores, allArrays
-
         # Create a new column for all variables in new_colnames that selects the value of the optimal land use
-        # for i in new_colnames:
-        #     feats[i] = np.take_along_axis(feats[[l + new_colnames[i] for l in landuses]].values,
-        #                                   feats['bestlu'].values[:, None], axis=1)
+
         for cname in ['production']:
             feats[cname] = np.take_along_axis(feats[[lu + new_colnames[cname] for lu in landuses]].values,
                                               feats['bestlu'].values[:, None], axis=1).flatten()
@@ -2226,9 +1916,6 @@ def export_raster(grid, export_column, dst, spat_constraint, lam, aff_scenario):
         else:
             arr = iddata.merge(grid[['cell_id',  c]], how = 'left', left_on = 'cell_id', right_on = 'cell_id')[c].values
 
-        # print("Array shape: {}".format(arr.shape))
-        # print("height {}, width: {}".format(meta['height'], meta['width']))
-
         rast = arr.reshape(meta['height'], meta['width'])
 
         meta['dtype'] = arr.dtype
@@ -2255,18 +1942,7 @@ def main(grid, foddercrop_list, producer_prices, fertiliser_prices, energy_conve
     Output: Writes the grid as GPKG file
     """
 
-    # LOG_FORMAT = "%(asctime)s - %(message)s"
-    #
-    # logging.basicConfig(
-    #     filename="/home/uqachare/model_file/whole_inf_{}_{}.log".format(scenario_id, lam),
-    #     level=logging.INFO,
-    #     format=LOG_FORMAT,
-    #     filemode='w')
-    #
-    # logger = logging.getLogger('second logger')
-
     feed_option = 'v2'
-    # horizon = 30
     production_yr = '2018'
     demand_scenario='SSP1-NoCC2010'
     crop_yield=0
@@ -2282,25 +1958,12 @@ def main(grid, foddercrop_list, producer_prices, fertiliser_prices, energy_conve
     logger.info("Start loading grid")
     logger.info('Current meat: {}'.format(grid.c_meat.sum()))
     logger.info('Current grid shape: {}'.format(grid.shape[0]))
-
-    # for c in grid.columns:
-    #     logger.info("   Min of {}".format(c))
-    #     if c == 'region':
-    #         logger.info(grid[c].dtype)
-    #         logger.info(grid.region.unique())
-    #
-    #     logger.info("   Min of {}: {}".format(c,  np.nanmin(grid[c].values)))
-
     logger.info('Initial shape: {}'.format(grid.shape[0]))
     logger.info("Scope: {}".format(scope))
-
     logger.info("Simulation start")
-    # logger.info('Me_to_meat scanerio: {}'.format(beef_yield))
     logger.info('Weight: {}'.format(lam))
-    # logger.info('Feed option scenario: {}'.format(feed_option))
     logger.info('Constraint: {}'.format(spat_constraint))
     logger.info('Aff scenario: {}'.format(aff_scenario))
-
 
     # Set amount of beef to be produced based on the chosen location
 
@@ -2324,19 +1987,12 @@ def main(grid, foddercrop_list, producer_prices, fertiliser_prices, energy_conve
         else:
             demand = beef_demand[demand_scenario].sum()
 
-        # demand = 2000000
-        # demand = 2.899584e+05
-
     logger.info('Demand: {}'.format(demand))
 
     # Adjust other uses for future demand  Proportion of demand increase
     beef_demand['dem_increase'] = beef_demand[demand_scenario] / beef_demand['SSP1-NoCC2010']
 
-    # logger.info('New demand for other uses before: {}'.format(grid[['diff_maize']].loc[grid.diff_maize > 0].head()))
-    # other_uses = grid[['ADM0_A3']+['diff_' + i for i in crop_list]].merge(beef_demand[['ADM0_A3', 'dem_increase']])
-
     other_uses = grid[['ADM0_A3']].merge(beef_demand[['ADM0_A3', 'dem_increase']], how='left')['dem_increase'].values
-    # grid[['diff_' + i for i in crop_list]] = grid[['diff_' + i for i in crop_list]].values * other_uses[:, None]
     grid['net_fodder_area'] = grid['net_fodder_area'].values * other_uses
     grid['stover_bm'] = grid['stover_bm'].values * other_uses
     grid['stover_energy'] = grid['stover_energy'].values * other_uses
@@ -2360,7 +2016,6 @@ def main(grid, foddercrop_list, producer_prices, fertiliser_prices, energy_conve
 
     logger.info('Grid shape after concat: {}'.format(grid.shape[0]))
     logger.info("Current meat before scoring: {}".format(grid['c_meat'].sum()))
-
     logger.info("sc_change_opp: {}".format(sc_change_opp))
 
     grid = opportunity_cost_carbon(grid, sc_change_opp, aff_scenario, logger, horizon, lam)
@@ -2371,7 +2026,6 @@ def main(grid, foddercrop_list, producer_prices, fertiliser_prices, energy_conve
 
     logger.info('Current meat: {}'.format(grid.c_meat.sum()))
     logger.info('Current grid shape: {}'.format(grid.shape[0]))
-
     logger.info("Current meat after scoring: {}".format(grid['c_meat'].sum()))
     logger.info('Grid shape after scoring: {}'.format(grid.shape[0]))
     logger.info("Done scoring")
@@ -2386,25 +2040,10 @@ def main(grid, foddercrop_list, producer_prices, fertiliser_prices, energy_conve
     # Get country-level domestic demand
     grid['dom_demand'] = grid[['ADM0_A3']].merge(beef_demand, how='left', left_on='ADM0_A3', right_on='ADM0_A3')['Demand'].values
 
-    # grid['dom_production'] = grid[['ADM0_A3']].merge(
-    #     beef_production, how='left', left_on='ADM0_A3', right_on=['ADM0_A3'])['curr_beef_meat'].values
-
     # Sort rows by increasing 'best score'
     grid = grid.sort_values('best_score')
     # Get cumulative country level production in order of increasing best score
     grid.loc[grid.changed == 0, 'cumdomprod'] = grid.groupby('ADM0_A3')['production'].transform(pd.Series.cumsum)
-
-    # grid.to_csv("grid"+ str(lam) +".csv", index = False)
-
-    logger.info('Shape before algo: {}'.format(grid.shape[0]))
-
-    # nld_demand = beef_production.loc[beef_production.ADM0_A3 == 'NLD', 'curr_beef_meat'].iloc[0]
-    # costs = tcost[nld_demand + grid.production > grid.production.cumsum()]
-
-    logger.info('Grid shape before trade: {}'.format(grid.shape[0]))
-    logger.info('trade_scenario: {} spat_constraint: {}'.format(trade_scenario, spat_constraint))
-    logger.info('---')
-    logger.info(grid[['bestlu']].dtypes)
 
     if trade_scenario == 'trade':
         if spat_constraint == 'country':
@@ -2453,8 +2092,6 @@ def main(grid, foddercrop_list, producer_prices, fertiliser_prices, energy_conve
                 # (3) Cumulative production is lower than global demand and (4) best score is lower than the highest score meeting these conditions
 
                 grid.loc[(grid['changed'] == 0) &
-                         # ((grid['cumdomprod'] < grid['dom_demand']) | (grid['exporting'] == 1)) &
-                         # ((grid['cumdomprod'] < grid['dom_demand'] + grid['production']) | (grid['exporting'] == 1)) &
                          ((grid['dom_demand'] + grid['production'] - grid['cumdomprod'] > 0) | (
                                      grid['exporting'] == 1)) &
                          ((demand + grid['production'] - grid['cumprod']) > 0) &
@@ -2496,7 +2133,6 @@ def main(grid, foddercrop_list, producer_prices, fertiliser_prices, energy_conve
     grid = grid.drop(['cumdomprod', 'dom_demand', 'exporting', 'destination'], axis = 1)
 
     logger.info('---')
-
     logger.info('Grid shape after trade: {}'.format(grid.shape[0]))
 
     grid = grid.sort_values('best_score')
@@ -2709,11 +2345,9 @@ def main(grid, foddercrop_list, producer_prices, fertiliser_prices, energy_conve
             # Score and beef production of last converted cell
             last_score = grid['best_score'].values[demand + grid['production'].values > grid.production.cumsum()][
                 -1]
-            #                 logger.info('last_score')
 
             # Difference between demand and sum of beef without last cell
             beef_needed = demand - np.nansum(grid.production[(demand > grid.production.cumsum())])
-            #                 logger.info('beef_needed')
 
             delta_score = (1 - lam) * (
                     grid[[lu + '_ghg' for lu in landuses]].values - grid.total_emission.values[:, None]) + (lam) * (
@@ -2763,9 +2397,7 @@ def main(grid, foddercrop_list, producer_prices, fertiliser_prices, energy_conve
 
             old_score = new_score
             logger.info('   beef: {}, emissions: {}, costs: {}'.format(
-                # score_change,
                 new_beef,
-                # old_beef,
                 new_emissions,
                 new_costs))
 
@@ -2947,9 +2579,7 @@ def main(grid, foddercrop_list, producer_prices, fertiliser_prices, energy_conve
 
                             old_score = new_score
                             logger.info('   beef: {}, emissions: {}, costs: {}'.format(
-                                # score_change,
                                 new_beef,
-                                # old_beef,
                                 new_emissions,
                                 new_costs))
                             nloop += 1
@@ -3112,7 +2742,6 @@ def main(grid, foddercrop_list, producer_prices, fertiliser_prices, energy_conve
                 'After merging beef: {}, new emissions: {}'.format(np.nansum(country_df['production'].values),
                                                                    np.nansum(country_df['total_emission'].values)))
 
-
     ######### Export #########
 
     opp_aff_curr = grid.loc[grid.changed == 0, 'opp_aff'].sum()
@@ -3137,10 +2766,7 @@ def main(grid, foddercrop_list, producer_prices, fertiliser_prices, energy_conve
 
     del regrowth_cells
     # Calculate how much current beef production is lost
-    # production_loss = grid.loc[grid.changed == 0, 'cell_area'] * grid.loc[grid.changed == 0, 'bvmeat'].values * 1e-5
 
-    # unconv_cells = grid.loc[grid['changed'] == 0][['ADM0_A3', 'opp_aff', 'opp_soc', 'aff_cost', 'regrowth_area']].groupby('ADM0_A3',
-    #                                                                                                      as_index=False).sum()
     unconv_cells = grid.loc[(grid.changed == 0) &
                             (grid.newarea == 0) &
                             (np.nan_to_num(grid.opp_aff) != 0)][
@@ -3151,7 +2777,6 @@ def main(grid, foddercrop_list, producer_prices, fertiliser_prices, energy_conve
     # Export raster of opportunity of afforestation
     export_raster(unconv_grid, ['opp_aff', 'opp_soc'], dst, spat_constraint, str(round(lam, 3)), aff_scenario)
     if lam in [0, 1]:
-
 
         if lam == 0:
             grid['tot_emi'] = np.take_along_axis(grid[[lu + new_colnames['total_emission'] for lu in landuses]].values,
@@ -3164,7 +2789,6 @@ def main(grid, foddercrop_list, producer_prices, fertiliser_prices, energy_conve
             g = grid[['cell_id', 'production', 'tot_cost']].groupby('cell_id', as_index=False).mean()
             g['score'] = g['tot_cost'].values / g['production'].values
 
-        # export_raster(g, ['score'], dst, spat_constraint, lam, horizon, aff_scenario)
         export_raster(g, ['score'], dst, spat_constraint, round(lam, 3), aff_scenario)
 
     logger.info('grid size before subset: {}'.format(grid.shape[0]))
@@ -3186,21 +2810,9 @@ def main(grid, foddercrop_list, producer_prices, fertiliser_prices, energy_conve
 
     logger.info('grid size after subset: {}'.format(grid.shape[0]))
 
-    # rasters = glob('./rasters/current_data/*.tif')
-    # c_list = [r.split('/')[-1].split('.')[0] for r in rasters]
-
     for i in new_colnames:
         grid[i] = np.take_along_axis(grid[[lu + new_colnames[i] for lu in landuses]].values,
                                      grid['bestlu'].values[:, None], axis=1).flatten()
-        # if i not in ['production', 'total_cost', 'total_emission']:
-            # if 'c' + new_colnames[i] in c_list:
-            #     with rasterio.open('./rasters/current_data/c{}.tif'.format(new_colnames[i])) as f:
-            #         # if int(production_yr) == 2018:
-            #         #     grid['c' + new_colnames[i]] = f.read(1).flatten()[grid.cell_id] * dem_inc_factor
-            #         # else:
-            #         grid['c' + new_colnames[i]] = f.read(1).flatten()[grid.cell_id]
-            # else:
-            #     grid['c' + new_colnames[i]] = np.zeros(shape = grid.shape[0], dtype = 'uint8')
 
     defor_area = grid.loc[(grid.changed == 1) & (grid.newarea == 1), 'beef_area'].sum()
 
@@ -3219,40 +2831,17 @@ def main(grid, foddercrop_list, producer_prices, fertiliser_prices, energy_conve
     infcost = np.select([grid.bestlu == 9, grid.bestlu == 11],
                         [grid.grass_grain_infcost, grid.stover_grain_infcost], default=0)
 
-    # grid['grass_meat'] = np.select([grid.bestlu == 9, grid.bestlu == 10, grid.bestlu == 11],
-    #                                [grid.grain_grass_meat, grid.stover_grass_grass_meat, 0], default=grid.production)
-    # grid['grain_meat'] = np.select([grid.bestlu == 9, grid.bestlu == 11],
-    #                                [grid.grain_grain_meat, grid.stover_grain_grain_meat], default=0)
-    # grid['stover_meat'] = np.select([grid.bestlu == 10, grid.bestlu == 11],
-    #                                 [grid.stover_grass_stover_meat, grid.stover_grain_stover_meat], default=0)
-
-    # beef_price = grid.loc[grid.changed == 0][['ADM0_A3']].merge(beefprices, how='left')['price'].values / 1000.
-    # total_compensation = grid.loc[grid.changed == 1,'compensation'].sum() + np.nansum(beef_price * production_loss)
-    # logger.info("Compensation in changed cells: {}".format(grid.loc[grid['changed'] == 1, 'compensation'].sum()))
-    # logger.info("Compensation for loss income: {}".format(np.nansum(production_loss)))
-    # logger.info("Maximum compensation: {}".format(np.nansum(grid['cell_area'].values * grid['bvmeat'].values * 1e-5)))
-
-    # If scenario is keep subsistence production: add subsistence production, impacts and costs to grid
-    # if spat_constraint == 'subsistence':
-    #     logger.info('Production before merging: {}'.format(grid.production.sum()))
-    #     grid = pd.concat([grid, gpd.read_file('global_south_results.gpkg')])
-    #     logger.info('Production after merging: {}'.format(grid.production.sum()))
-
     grid['total_costs'] = np.where(grid['bestlu'] != 12,
                                    np.nansum(grid[['establish_cost', 'production_cost', 'opportunity_cost', 'postfarm_cost']].values, axis = 1),
-                                   # + grid['transp_cost'] + grid['export_cost']
                                    np.nansum(grid[['c_cost', 'c_opp_cost', 'c_postfarm_cost']].values, axis = 1))
-    # + grid['aff_cost']
     grid['total_emissions'] = np.where(grid['bestlu'] != 12,
                                        np.nansum(grid[['agb_change', 'bgb_change', 'n2o_emissions', 'enteric', 'manure',
                                              'postfarm_emi']].values, axis =1),
-                                       # grid['transp_emission'] + grid['processing_energy'] + grid['export_emissions'],
                                        np.nansum(grid[['c_meth', 'c_manure', 'c_n2o', 'c_postfarm_emi']].values, axis = 1))
 
     grid['beef_area'] = np.where(grid.bestlu == 12,
                                  grid['current_grazing'].fillna(0).values + grid['current_cropping'].fillna(0).values,
                                  grid.beef_area)
-    # grid.to_csv('grid_{}.csv'.format(lam))
 
     totaldf = pd.DataFrame({"suitable": grid.suitable.sum()* grid.cell_area.sum(),
                             "grass_BM": grid.grass_BM.sum(),
@@ -3295,8 +2884,6 @@ def main(grid, foddercrop_list, producer_prices, fertiliser_prices, energy_conve
                             'scenario_id':[scenario_id],
                             })
 
-    # grid.to_csv("test_" + str(lam) + ".csv", index = False)
-
     logger.info('Final beef production: {}'.format(totaldf.production.iloc[0]))
     logger.info('Final emissions: {}'.format(totaldf.total_emissions.iloc[0]))
     logger.info('Final costs: {}'.format(totaldf.total_costs.iloc[0]))
@@ -3308,9 +2895,7 @@ def main(grid, foddercrop_list, producer_prices, fertiliser_prices, energy_conve
 
     country_data = grid[['ADM0_A3', 'total_costs', 'total_emissions', 'production', 'biomass', 'beef_area', "enteric",
                         "manure", "postfarm_emi", 'postfarm_cost', 'production_cost', 'establish_cost', 'opportunity_cost',
-                         # "export_emissions", "transp_emission",  "processing_energy",
                          "n2o_emissions", "agb_change", "bgb_change","grass_BM","grain_BM", "stover_BM",
-                         # 'grain_meat',     'stover_meat'
                          ]].groupby('ADM0_A3', as_index=False).sum()
 
     defor_area = grid.loc[(grid.changed == 1) & (grid.newarea == 1)][['ADM0_A3', 'beef_area']].groupby('ADM0_A3', as_index = False).sum()
@@ -3329,36 +2914,19 @@ def main(grid, foddercrop_list, producer_prices, fertiliser_prices, energy_conve
     country_data['spat_constraint'] = spat_constraint
     country_data["prod_year"] = production_yr
 
-    # if simulation == 'main':
     country_data.to_csv(dst + '/countrylevel_' + spat_constraint + "_" + str(round(lam,3)) + '_'  + aff_scenario + ".csv", index=False)
 
-    # logger.info("Countries in country level: {}".format(country_data.ADM0_A3))
-    #
-    # # Export raster
-    # # grid = grid[['cell_id', 'production', 'agb_change', 'bgb_change',"grass_BM","grain_BM", "stover_BM"]].groupby('cell_id', as_index=False).sum()
-    # # export_raster(grid, ['production', 'agb_change', "grass_BM","grain_BM", "stover_BM"], dst, spat_constraint, lam, horizon, aff_scenario)
-    #
-    # logger.info("Exporting raster finished")
-    #
-    # if lam == 1:
-    #     logger.info(grid.shape)
-    #     for c in grid.columns:
-    #         logger.info('Dtype of {}: {}'.format(c, grid[c].dtype))
-    # return totaldf
     grid['new_production'] = np.where(grid.newarea == 1, grid.production, 0)
     grid['expansion_area'] = np.where(grid.newarea == 1, grid.beef_area, 0)
 
-    # grid.loc[grid.ADM0_A3 == 'DEU'].to_csv('grid_' + spat_constraint + "_" + str(round(lam,3)) + "_" + aff_scenario + ".csv", index=False)
     for i in ['c_graz', 'c_stover', 'c_grain', 'c_meat']:
         grid[i] = np.nan_to_num(grid[i].values)
         grid.loc[grid.newarea == 1, i] = 0
-    # grid.to_csv('./grid.csv', index = False)
     grid2 = grid[['cell_id', 'production', 'c_meat', 'n2o_emissions', 'c_graz', 'c_stover', 'c_grain','opportunity_cost',
                   'postfarm_cost', 'production_cost', 'establish_cost',
                   'agb_change', 'bgb_change',
                   'total_costs', 'total_emissions',
                   'expansion_area', "grass_BM","grain_BM", "stover_BM", 'new_production', 'beef_area']].groupby('cell_id', as_index=False).sum()
-    # grid2.merge(grid.loc[grid.new_production > 0][['cell_id', 'new_production']], how = 'left')
 
     grid2['hotspot_factor'] = np.select(
         [grid2.production.astype(int) == grid2.c_meat.astype(int), # same production
@@ -3374,17 +2942,7 @@ def main(grid, foddercrop_list, producer_prices, fertiliser_prices, energy_conve
 
     if simulation == 'main':
         if lam in [0,1]:
-            # grid2['newlanduse'] = np.select(
-            #     [(grid2.grass_BM > 0) & (grid2.stover_BM + grid2.grain_BM == 0) & (grid2.n2o_emissions > 0),
-            #      # unimproved pasture
-            #      (grid2.grass_BM > 0) & (grid2.stover_BM + grid2.grain_BM == 0) & (grid2.n2o_emissions == 0),
-            #      # improved pasture
-            #      (grid2.grass_BM > 0) & (grid2.stover_BM > 0) & (grid2.grain_BM == 0),  # grass + stover,
-            #
-            #      grid2.grain_BM > 0], # grain-based
-            #      # (grid2.grass_BM > 0) & (grid2.stover_BM == 0) & (grid2.grain_BM > 0),  # grass + grain
-            #      # (grid2.grass_BM == 0) & (grid2.stover_BM > 0) & (grid2.grain_BM > 0)],  # stover + grain
-            #     [1, 2, 3, 4, 5], default=6)
+
             grid2['newlanduse'] = np.select(
                 [(grid2.grass_BM > 0) & (grid2.stover_BM + grid2.grain_BM == 0) & (grid2.n2o_emissions > 0),  # unimproved pasture
                  (grid2.grass_BM > 0) & (grid2.stover_BM + grid2.grain_BM == 0) & (grid2.n2o_emissions == 0), # improved pasture
@@ -3393,18 +2951,9 @@ def main(grid, foddercrop_list, producer_prices, fertiliser_prices, energy_conve
                  (grid2.grain_BM > 0) & (grid2.grain_BM < (grid2.grass_BM + grid2.stover_BM)),# grain main feed
                 (grid2.grain_BM > 0) & (grid2.grain_BM > (grid2.grass_BM + grid2.stover_BM))],  # grain minority feed
 
-            # (grid2.grass_BM > 0) & (grid2.stover_BM == 0) & (grid2.grain_BM > 0),# grass + grain
-                 # (grid2.grass_BM == 0 )& (grid2.stover_BM  > 0) & (grid2.grain_BM > 0)],# stover + grain
                  [1, 2, 3, 4, 5], default = 6)
-            col_list = ['production','hotspot_factor',
-                'newlanduse', 'expansion_area',
-                        'agb_change','bgb_change',
-                        # 'cell_id',
-                         "grass_BM","grain_BM", "stover_BM",
-                        # 'beef_area',
-                        'total_emissions','total_costs'
-                                      # 'opportunity_cost','postfarm_cost', 'production_cost', 'establish_cost'
-                        ]
+            col_list = ['production','hotspot_factor', 'newlanduse', 'expansion_area', 'agb_change','bgb_change',
+                         "grass_BM","grain_BM", "stover_BM", 'total_emissions','total_costs']
 
             exp = grid.loc[grid.newarea == 1][['cell_id', 'bestlu']].rename(columns = {'bestlu':'prod_exp'})
             curr = grid.loc[grid.newarea == 0][['cell_id', 'bestlu']].rename(columns = {'bestlu':'prod_curr'})
@@ -3417,13 +2966,7 @@ def main(grid, foddercrop_list, producer_prices, fertiliser_prices, energy_conve
             export_raster(grid2, col_list, dst, spat_constraint, round(lam,3), aff_scenario)
 
         else:
-            col_list = [
-                'production',
-                # "grass_BM","grain_BM", "stover_BM",
-                'expansion_area'
-                                                    # 'total_costs','opportunity_cost','postfarm_cost', 'production_cost', 'establish_cost'
-                        # 'agb_change', 'expansion_area',
-                        ]
+            col_list = ['production','expansion_area']
 
             export_raster(grid2, col_list, dst, spat_constraint, round(lam,3), aff_scenario)
 
@@ -3443,12 +2986,10 @@ def setup_logger(logger_name, log_file, level=logging.INFO):
     print(l.handlers)
 
 def parallelise(dst,  job, step, job_name, suit_area, graz_options, crop_options, feed_source, horizon, graz_cap,
-                feed_area,
-                scope, sim=None):
+                feed_area, scope, sim=None):
 
     simulation = job_name.split('-')[0]
     pnas_inputs = job_name.split('-')[1]
-    # feed_inputs = job_name.split('-')[2]
 
     horizon_dict = {1: 20,
                     2: 30,
@@ -3550,12 +3091,7 @@ def parallelise(dst,  job, step, job_name, suit_area, graz_options, crop_options
                     (current_grid['c_meat'].values > 0)]
 
     if simulation == 'main':
-        export_raster(current_grid, ['c_meat','c_opp_cost','c_tot_cost', 'c_ghg', 'c_cost','c_area'
-                                     # 'export_costs',
-                                     # 'loc_trans_cost', 'grass_cost', 'trans_feed_cost', 'curr_grain_cost'
-                                     # 'c_grain','c_graz','c_occa',
-                                     # , 'c_ghg'
-        ], dst, '', '', '')
+        export_raster(current_grid, ['c_meat','c_opp_cost','c_tot_cost', 'c_ghg', 'c_cost','c_area'], dst, '', '', '')
 
     index = 1
     scenarios = {}
@@ -3563,12 +3099,10 @@ def parallelise(dst,  job, step, job_name, suit_area, graz_options, crop_options
             for a in ['noaff', 'regrowth']:
                 scenarios[index] = [spat_cons, a]
                 index += 1
-    # step # step = 5
 
     aff_scenario = scenarios[job][1]
     spat = scenarios[job][0]
 
-    # ME_conv_df = energy_conversion_sampling()
     ME_conv_df = pd.read_csv("tables/energy_conversion.csv")
 
     opp_soc = opp_soc_change_sampling('opp', aff_scenario, simulation, log1),
@@ -3616,8 +3150,8 @@ def parallelise(dst,  job, step, job_name, suit_area, graz_options, crop_options
 
             pool = multiprocessing.Process(target=main,
                                            args=(current_grid.copy(),
-                                                  foddercrop_list,
-                                                  producer_prices,
+                                                 foddercrop_list,
+                                                 producer_prices,
                                                   fertiliser_prices,
                                                   ME_conv_df,
                                                   opp_soc,
